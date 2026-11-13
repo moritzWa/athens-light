@@ -95,12 +95,12 @@ footer { margin-top: 80px; padding-top: 16px; border-top: 1px solid var(--rule);
 .post ul { padding-left: 22px; margin: 0 0 16px; }
 .post li { margin-bottom: 6px; }
 .post .meta { color: var(--gray); font-size: 13px; margin: 0 0 32px; }
-.post a { color: #506cf7; }
-.post a:hover { color: var(--ink); }
+.post article a { color: #506cf7; }
+.post article a:hover { color: var(--ink); }
 .post pre { background: var(--code-bg); border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 13px; }
 .post pre code { background: none; padding: 0; }
 .tablewrap { overflow-x: auto; margin: 0 0 24px; }
-table.compare { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 640px; }
+table.compare { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 520px; }
 table.compare th, table.compare td { text-align: left; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
 table.compare th { font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--gray); }
 table.compare tr.me td { background: #f7f8ff; font-weight: 600; }
