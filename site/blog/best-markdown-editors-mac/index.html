@@ -43,7 +43,7 @@
   <p class="meta">Moritz Wallawitsch &middot; November 13, 2026</p>
 
   <p>My markdown files opened in VS Code. I wanted them to open in something lighter, where <code># Title</code> turns into a title as I type. It had to be free.</p>
-  <p>I looked at the usual options. This post says what each one is, what it costs, and who it fits. I also built my own, <a href="/">Athens Light</a>, and I say where it falls short. Prices, licenses and download sizes are from each project's site and GitHub page on November 13, 2026.</p>
+  <p>I looked at the usual options. This post says what each one is, what it costs, and who it fits. I also built my own, <a href="/">Athens Light</a>, and I say where it falls short. Prices, licenses and download sizes are from each project's site and GitHub page on November 13, 2026. Every screenshot shows the same note, opened on a Mac in a window of the same size.</p>
 
   <h2>The short answer</h2>
   <ul>
@@ -74,25 +74,49 @@
   <p style="font-size:13px;color:var(--gray)">Download sizes are the Apple silicon macOS installers: Mark Text 0.23.0, Obsidian 1.15.1, Zettlr 4.10.0, Typora from its download page, MarkEdit 1.37.1.</p>
 
   <h2>Typora</h2>
+  <figure>
+    <img src="/img/typora.png" alt="Typora showing the trip notes with rendered headings, checkboxes and a table" width="916" height="834" loading="lazy">
+    <figcaption>Typora opens the same note as rich text. The badge in the corner is the trial notice.</figcaption>
+  </figure>
   <p>Typora is the editor most people mean when they say "WYSIWYG markdown". It shows formatted text as you type and hides the syntax. It also has a file tree, an outline panel, math, Mermaid diagrams, themes, and export to PDF, Word and other formats.</p>
   <p>It costs $14.99 once, with a 15-day trial, and a license covers up to three devices. It is not open source. If you write a lot and want the finished product, it is worth the money. I wanted free, so I kept looking.</p>
 
   <h2>MarkEdit</h2>
+  <figure>
+    <img src="/img/markedit.png" alt="MarkEdit showing the trip notes as highlighted markdown source" width="916" height="834" loading="lazy">
+    <figcaption>MarkEdit shows the markdown source with syntax highlighting.</figcaption>
+  </figure>
   <p>MarkEdit calls itself "just like TextEdit on Mac but dedicated to Markdown". It is a native app of about 4 MB. It is free, MIT licensed, and built on the CodeMirror 6 editor. It follows the GitHub flavor of markdown and adds no syntax of its own.</p>
   <p>It is not WYSIWYG. You see the markdown source with syntax highlighting, so <code># Title</code> stays as typed. Extensions can add a preview, hide the syntax, or edit tables visually. If you like source, MarkEdit is excellent. I wanted the opposite, so it was not what I was looking for.</p>
 
   <h2>Mark Text</h2>
+  <figure>
+    <img src="/img/marktext.png" alt="Mark Text showing the trip notes as rich text" width="916" height="834" loading="lazy">
+    <figcaption>Mark Text renders the note as rich text.</figcaption>
+  </figure>
   <p>Mark Text is free, MIT licensed, and edits markdown as rich text. It supports math, front matter and emoji. It is actively developed: version 0.23.0 came out on October 21, 2026.</p>
   <p>It is an Electron app, and the Apple silicon download is 150 MB. Its macOS builds are also unsigned. When I opened it, macOS said "Apple could not verify MarkText is free of malware". The release notes tell you to run <code>xattr -d com.apple.quarantine /Applications/MarkText.app</code> once. That works, but it is not what I wanted from a simple editor.</p>
 
   <h2>Obsidian</h2>
+  <figure>
+    <img src="/img/obsidian.png" alt="Obsidian showing the trip notes inside a vault with a file list on the left" width="916" height="834" loading="lazy">
+    <figcaption>Obsidian opens the note inside a vault, with a file list on the left.</figcaption>
+  </figure>
   <p>Obsidian is free for every use, including work. It is not open source. Your notes are plain markdown files in a folder, which it calls a vault. Its Live Preview mode formats text as you type.</p>
   <p>Obsidian is a notes system: links between notes, plugins, themes. Paid extras are Sync at $4 a month (billed yearly) and Publish at $8 a month. The installer is 222 MB. If you only want to edit one file, it is a lot of app. If you keep a web of notes, nothing here beats it.</p>
 
   <h2>Zettlr</h2>
+  <figure>
+    <img src="/img/zettlr.png" alt="Zettlr showing the trip notes next to a file manager and a tutorial workspace" width="916" height="834" loading="lazy">
+    <figcaption>Zettlr on first launch: a file manager, a tutorial workspace and split view.</figcaption>
+  </figure>
   <p>Zettlr is free and GPL-3.0 licensed. It describes itself as a "publication workbench". It is built for academic writing: citations through reference managers such as Zotero, and export through Pandoc and LaTeX. It is an Electron app with a 193 MB installer. For a thesis it is a strong pick. For a quick edit it is more than needed.</p>
 
   <h2>Athens Light</h2>
+  <figure>
+    <img src="/img/athens-light.png" alt="Athens Light showing the trip notes as rich text" width="948" height="768" loading="lazy">
+    <figcaption>Athens Light opens the same note as rich text, with nothing else on screen.</figcaption>
+  </figure>
   <p>Athens Light does one thing. You open a <code>.md</code> file and edit it as rich text. It saves to the same file as you type. Every file opens as a native macOS tab. <kbd>Cmd+N</kbd> makes a new file, and clicking the title renames it. There are no vaults, no sync and no toolbar.</p>
   <p>Athens Light is the minimalist version of <a href="https://tryathens.com">Athens</a>, an AI writing editor I built earlier. Athens is a markdown-based WYSIWYG editor with AI suggestions, collaboration and Google Docs import. Athens Light keeps the editing and drops the rest.</p>
   <p>It is 3.4 MB because it is a small Rust shell (Tauri) around the web view that macOS already has. The editor inside is <a href="https://tiptap.dev">Tiptap</a>. It is MIT licensed and the code is on <a href="https://github.com/moritzWa/athens-light">GitHub</a>.</p>
