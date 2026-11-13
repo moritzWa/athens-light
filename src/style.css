@@ -197,3 +197,10 @@ body.launcher button {
 body.launcher button:hover {
   border-color: var(--muted);
 }
+
+#badge {
+  position: absolute;
+  right: 14px;
+  font: 12px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  color: #b4690e;
+}

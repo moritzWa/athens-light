@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://athens-light.app/sitemap.xml

@@ -1,7 +1,6 @@
 import { Editor } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
-import { Markdown } from "@tiptap/markdown";
-import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table";
+import { extensions } from "./extensions";
+import { splitFrontMatter, unsupportedSyntax } from "./frontmatter";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import logo from "./athens-logo.svg";
@@ -35,19 +34,13 @@ async function main() {
   let path: string = initial;
 
   let lastDisk = await invoke<string>("read_file", { path });
+  let { front, body } = splitFrontMatter(lastDisk);
   let timer: number | undefined;
 
   const editor = new Editor({
     element: document.getElementById("editor")!,
-    extensions: [
-      StarterKit.configure({ link: { openOnClick: false } }),
-      Markdown,
-      Table,
-      TableRow,
-      TableHeader,
-      TableCell,
-    ],
-    content: lastDisk,
+    extensions,
+    content: body,
     contentType: "markdown",
     autofocus: "start",
     onUpdate: () => {
@@ -58,12 +51,13 @@ async function main() {
 
   // What the editor produces for the untouched file. Saves only happen when
   // the content differs from this, so merely opening a file never rewrites it.
-  let synced = normalize(editor.getMarkdown());
+  const serialize = () => front + normalize(editor.getMarkdown());
+  let synced = serialize();
 
   async function save() {
     window.clearTimeout(timer);
     timer = undefined;
-    const md = normalize(editor.getMarkdown());
+    const md = serialize();
     if (md === synced) return;
     await invoke("write_file", { path, content: md });
     synced = md;
@@ -78,6 +72,15 @@ async function main() {
   title.textContent = baseName(path);
   header.append(title);
   document.body.prepend(header);
+
+  const unsupported = unsupportedSyntax(body);
+  if (unsupported) {
+    editor.setEditable(false);
+    const badge = document.createElement("span");
+    badge.id = "badge";
+    badge.textContent = `Read-only: this file has ${unsupported}, which Athens Light can't save`;
+    header.append(badge);
+  }
 
   title.addEventListener("click", () => {
     const input = document.createElement("input");
@@ -122,8 +125,9 @@ async function main() {
     const disk = await invoke<string>("read_file", { path });
     if (disk === lastDisk) return;
     lastDisk = disk;
-    editor.commands.setContent(disk, { contentType: "markdown", emitUpdate: false });
-    synced = normalize(editor.getMarkdown());
+    ({ front, body } = splitFrontMatter(disk));
+    editor.commands.setContent(body, { contentType: "markdown", emitUpdate: false });
+    synced = serialize();
   });
 
   window.addEventListener("keydown", (e) => {

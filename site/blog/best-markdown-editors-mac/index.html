@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The best markdown editors for Mac in 2026, compared</title>
+<meta name="description" content="Typora, MarkEdit, Mark Text, Obsidian, Zettlr and Athens Light compared on price, size, editing style and open source. Prices and download sizes checked on November 13, 2026.">
+<link rel="canonical" href="https://athens-light.app/blog/best-markdown-editors-mac/">
+<meta property="og:title" content="The best markdown editors for Mac in 2026, compared">
+<meta property="og:description" content="Six markdown editors for macOS, compared on price, size, editing style and open source.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://athens-light.app/blog/best-markdown-editors-mac/">
+<meta property="og:image" content="https://athens-light.app/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "The best markdown editors for Mac in 2026, compared",
+  "datePublished": "2026-11-13",
+  "dateModified": "2026-11-13",
+  "author": { "@type": "Person", "name": "Moritz Wallawitsch", "url": "https://github.com/moritzWa" },
+  "mainEntityOfPage": "https://athens-light.app/blog/best-markdown-editors-mac/"
+}
+</script>
+</head>
+<body>
+<div class="page post">
+
+<header style="max-width:none">
+  <a class="brand" href="/"><img src="/favicon.svg" alt="">Athens Light</a>
+  <nav>
+    <a href="/blog/">Blog</a>
+    <a href="https://github.com/moritzWa/athens-light">GitHub</a>
+  </nav>
+</header>
+
+<article>
+  <div class="label">Comparison</div>
+  <h1>The best markdown editors for Mac in 2026, compared</h1>
+  <p class="meta">Moritz Wallawitsch &middot; November 13, 2026</p>
+
+  <p>My markdown files opened in VS Code. I wanted them to open in something lighter, where <code># Title</code> turns into a title as I type. It had to be free.</p>
+  <p>I looked at the usual options. This post says what each one is, what it costs, and who it fits. I also built my own, <a href="/">Athens Light</a>, and I say where it falls short. Prices, licenses and download sizes are from each project's site and GitHub page on November 13, 2026.</p>
+
+  <h2>The short answer</h2>
+  <ul>
+    <li><strong>You want to open a <code>.md</code> file and edit it as rich text, with nothing else:</strong> Athens Light. It is the simplest of the six and 3 MB.</li>
+    <li><strong>You want the most polished editor and $15 is fine:</strong> Typora.</li>
+    <li><strong>You like seeing the markdown source and want a native app:</strong> MarkEdit.</li>
+    <li><strong>You keep a linked notes system:</strong> Obsidian.</li>
+    <li><strong>You write papers with citations:</strong> Zettlr.</li>
+    <li><strong>You want free rich-text editing with many features and can live with a 150 MB app:</strong> Mark Text.</li>
+  </ul>
+
+  <h2>The comparison</h2>
+  <div class="tablewrap">
+  <table class="compare">
+    <thead>
+      <tr><th>Editor</th><th>How you edit</th><th>Price</th><th>Open source</th><th>Download</th></tr>
+    </thead>
+    <tbody>
+      <tr class="me"><td>Athens Light</td><td>Rich text</td><td>Free</td><td>MIT</td><td>3.4 MB</td></tr>
+      <tr><td>Typora</td><td>Rich text</td><td>$14.99 once, 15-day trial</td><td>No</td><td>14.5 MB</td></tr>
+      <tr><td>MarkEdit</td><td>Markdown source, highlighted</td><td>Free</td><td>MIT</td><td>3 to 4 MB</td></tr>
+      <tr><td>Mark Text</td><td>Rich text</td><td>Free</td><td>MIT</td><td>150 MB</td></tr>
+      <tr><td>Obsidian</td><td>Live Preview inside a vault</td><td>Free</td><td>No</td><td>222 MB</td></tr>
+      <tr><td>Zettlr</td><td>Markdown source with inline rendering</td><td>Free</td><td>GPL-3.0</td><td>193 MB</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:13px;color:var(--gray)">Download sizes are the Apple silicon macOS installers: Mark Text 0.23.0, Obsidian 1.15.1, Zettlr 4.10.0, Typora from its download page, MarkEdit 1.37.1.</p>
+
+  <h2>Typora</h2>
+  <p>Typora is the editor most people mean when they say "WYSIWYG markdown". It shows formatted text as you type and hides the syntax. It also has a file tree, an outline panel, math, Mermaid diagrams, themes, and export to PDF, Word and other formats.</p>
+  <p>It costs $14.99 once, with a 15-day trial, and a license covers up to three devices. It is not open source. If you write a lot and want the finished product, it is worth the money. I wanted free, so I kept looking.</p>
+
+  <h2>MarkEdit</h2>
+  <p>MarkEdit calls itself "just like TextEdit on Mac but dedicated to Markdown". It is a native app of about 4 MB. It is free, MIT licensed, and built on the CodeMirror 6 editor. It follows the GitHub flavor of markdown and adds no syntax of its own.</p>
+  <p>It is not WYSIWYG. You see the markdown source with syntax highlighting, so <code># Title</code> stays as typed. Extensions can add a preview, hide the syntax, or edit tables visually. If you like source, MarkEdit is excellent. I wanted the opposite, so it was not what I was looking for.</p>
+
+  <h2>Mark Text</h2>
+  <p>Mark Text is free, MIT licensed, and edits markdown as rich text. It supports math, front matter and emoji. It is actively developed: version 0.23.0 came out on October 21, 2026.</p>
+  <p>It is an Electron app, and the Apple silicon download is 150 MB. Its macOS builds are also unsigned. When I opened it, macOS said "Apple could not verify MarkText is free of malware". The release notes tell you to run <code>xattr -d com.apple.quarantine /Applications/MarkText.app</code> once. That works, but it is not what I wanted from a simple editor.</p>
+
+  <h2>Obsidian</h2>
+  <p>Obsidian is free for every use, including work. It is not open source. Your notes are plain markdown files in a folder, which it calls a vault. Its Live Preview mode formats text as you type.</p>
+  <p>Obsidian is a notes system: links between notes, plugins, themes. Paid extras are Sync at $4 a month (billed yearly) and Publish at $8 a month. The installer is 222 MB. If you only want to edit one file, it is a lot of app. If you keep a web of notes, nothing here beats it.</p>
+
+  <h2>Zettlr</h2>
+  <p>Zettlr is free and GPL-3.0 licensed. It describes itself as a "publication workbench". It is built for academic writing: citations through reference managers such as Zotero, and export through Pandoc and LaTeX. It is an Electron app with a 193 MB installer. For a thesis it is a strong pick. For a quick edit it is more than needed.</p>
+
+  <h2>Athens Light</h2>
+  <p>Athens Light does one thing. You open a <code>.md</code> file and edit it as rich text. It saves to the same file as you type. Every file opens as a native macOS tab. <kbd>Cmd+N</kbd> makes a new file, and clicking the title renames it. There are no vaults, no sync and no toolbar.</p>
+  <p>It is 3.4 MB because it is a small Rust shell (Tauri) around the web view that macOS already has. The editor inside is <a href="https://tiptap.dev">Tiptap</a>. It is MIT licensed and the code is on <a href="https://github.com/moritzWa/athens-light">GitHub</a>.</p>
+
+  <h3>Where it falls short</h3>
+  <ul>
+    <li>Your first edit rewrites the whole file in the editor's markdown style. Bullet characters and spacing can change.</li>
+    <li>Files with raw HTML or footnotes open read-only, because the editor cannot write them back without losing them.</li>
+    <li>Front matter, images, task lists and tables survive. There is no file tree, no outline, no math, no diagrams and no export.</li>
+    <li>The app is for Apple silicon Macs. It is not notarized yet, so macOS asks you to confirm it once, like Mark Text. Building it from source avoids that.</li>
+  </ul>
+
+  <h2>Which one to pick</h2>
+  <p>If you edit markdown files now and then, and want them to open as rich text in a small free app, use Athens Light. If you write all day, pay for Typora. If you prefer source, use MarkEdit. If your notes link to each other, use Obsidian. If you cite papers, use Zettlr. If you want a free rich-text editor with a long feature list, use Mark Text.</p>
+  <p>Athens Light is on <a href="https://github.com/moritzWa/athens-light/releases/latest">GitHub</a>. It takes about a minute to install, and the whole app is under 700 lines of code, so you can read all of it.</p>
+</article>
+
+<footer>
+  <span>MIT licensed. Made by <a href="https://github.com/moritzWa">Moritz Wallawitsch</a>.</span>
+  <a href="/blog/">All posts</a>
+</footer>
+
+</div>
+</body>
+</html>

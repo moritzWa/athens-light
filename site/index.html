@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Athens Light: a tiny markdown editor for Mac</title>
+<meta name="description" content="Open a .md file, edit it as rich text, and it saves back to the same file. A 3 MB free and open-source markdown editor for macOS. No vaults, no sync, no toolbar.">
+<link rel="canonical" href="https://athens-light.app/">
+<meta property="og:title" content="Athens Light">
+<meta property="og:description" content="A tiny markdown editor for Mac. Open a .md file, edit it as rich text, done.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://athens-light.app/">
+<meta property="og:image" content="https://athens-light.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://athens-light.app/og.png">
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="page">
+
+<header>
+  <a class="brand" href="/"><img src="/favicon.svg" alt="">Athens Light</a>
+  <nav>
+    <a href="/blog/">Blog</a>
+    <a href="https://github.com/moritzWa/athens-light">GitHub</a>
+  </nav>
+</header>
+
+<main>
+  <div class="label">Markdown editor for Mac</div>
+  <h1>Open a markdown file.<br>Edit it. That's it.</h1>
+  <p class="lede">Athens Light edits <code>.md</code> files as rich text and saves them back to the same file. It is 3 MB, free, and open source. No vaults, no sync, no toolbar.</p>
+
+  <div class="actions" style="margin-top:0">
+    <a class="button" href="https://github.com/moritzWa/athens-light/releases/latest">Download for Mac</a>
+    <a href="https://github.com/moritzWa/athens-light">View on GitHub &rarr;</a>
+  </div>
+  <p class="note">Apple silicon Macs only for now. The app is not notarized yet, so macOS asks you to confirm it once. After you drag it to Applications, run this:</p>
+  <div class="install" style="margin-top:10px">
+    <span class="prompt">$</span>
+    <code id="cmd">xattr -dr com.apple.quarantine "/Applications/Athens Light.app"</code>
+    <button class="copy" id="copy">Copy</button>
+  </div>
+
+  <div class="shot">
+    <img src="/screenshot.png" alt="Athens Light showing a note with a heading, a list, a table and a quote" width="1800" height="1400">
+  </div>
+
+  <section>
+    <div class="label">What it does</div>
+    <div class="features">
+      <div><b>Rich text, saved as markdown</b>Type <code># </code>, <code>**bold**</code> or <code>- </code> and it formats as you go. The file on disk stays plain markdown.</div>
+      <div><b>Opens like any Mac app</b>Double-click a <code>.md</code> file. Every file opens as a native macOS tab.</div>
+      <div><b>Saves as you type</b>No save button. <kbd>Cmd+S</kbd> forces it. A file you open and never edit is never rewritten.</div>
+      <div><b>Notices outside edits</b>If git or an agent changes the file while you are away, the window reloads it when you come back.</div>
+      <div><b>New file in one step</b><kbd>Cmd+N</kbd> asks for a name and opens an empty file. Click the title to rename the file on disk.</div>
+      <div><b>Small and fast</b>A Rust shell (Tauri) around the system web view. 3 MB, not 150 MB. Light and dark follow your Mac.</div>
+    </div>
+  </section>
+
+  <section>
+    <div class="label">Compare</div>
+    <p style="color: var(--gray); max-width: 640px; margin: 18px 0 0;">Typora, MarkEdit, Mark Text, Obsidian and Zettlr all edit markdown on a Mac. Each costs something different: money, memory or setup. <a href="/blog/best-markdown-editors-mac/">Read the comparison &rarr;</a></p>
+  </section>
+
+  <section>
+    <div class="label">Good to know</div>
+    <p style="color: var(--gray); max-width: 640px; margin: 18px 0 0;">Your first edit to a file rewrites the whole file in the editor's markdown style. Bullets, spacing and unsupported syntax such as front matter can change. Athens Light is for notes and docs, not for files where exact formatting matters.</p>
+  </section>
+</main>
+
+<footer>
+  <span>MIT licensed. Made by <a href="https://github.com/moritzWa">Moritz Wallawitsch</a>.</span>
+  <a href="https://github.com/moritzWa/athens-light">Source</a>
+</footer>
+
+</div>
+<script>
+  document.getElementById('copy').addEventListener('click', function () {
+    var b = this;
+    navigator.clipboard.writeText(document.getElementById('cmd').textContent).then(function () {
+      b.textContent = 'Copied';
+      setTimeout(function () { b.textContent = 'Copy'; }, 1500);
+    });
+  });
+</script>
+</body>
+</html>
