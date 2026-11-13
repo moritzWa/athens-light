@@ -12,7 +12,7 @@ use std::{
 
 use tauri::{
     menu::{Menu, MenuItem, MenuItemKind},
-    AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Manager, RunEvent, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
 };
 use tauri_plugin_dialog::DialogExt;
 
@@ -49,6 +49,24 @@ fn open_path(app: &AppHandle, path: PathBuf) {
         .title(title)
         .inner_size(820.0, 920.0)
         .tabbing_identifier("athens-light")
+        .title_bar_style(TitleBarStyle::Overlay)
+        .hidden_title(true)
+        .build();
+
+    if let Some(launcher) = app.get_webview_window("launcher") {
+        let _ = launcher.close();
+    }
+}
+
+fn show_launcher(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("launcher") {
+        let _ = window.set_focus();
+        return;
+    }
+    let _ = WebviewWindowBuilder::new(app, "launcher", WebviewUrl::App("index.html".into()))
+        .title("Athens Light")
+        .inner_size(420.0, 300.0)
+        .resizable(false)
         .build();
 }
 
@@ -58,15 +76,39 @@ fn pick_and_open(app: &AppHandle) {
         .file()
         .add_filter("Markdown", &["md", "markdown"])
         .pick_file(move |picked| {
-            match picked.and_then(|p| p.into_path().ok()) {
-                Some(path) => open_path(&handle, path),
-                None => {
-                    if handle.webview_windows().is_empty() {
-                        handle.exit(0);
-                    }
-                }
+            if let Some(path) = picked.and_then(|p| p.into_path().ok()) {
+                open_path(&handle, path);
             }
         });
+}
+
+fn create_and_open(app: &AppHandle) {
+    let handle = app.clone();
+    app.dialog()
+        .file()
+        .add_filter("Markdown", &["md"])
+        .set_file_name("Untitled.md")
+        .save_file(move |picked| {
+            if let Some(mut path) = picked.and_then(|p| p.into_path().ok()) {
+                if path.extension().is_none() {
+                    path.set_extension("md");
+                }
+                if !path.exists() {
+                    let _ = fs::write(&path, "");
+                }
+                open_path(&handle, path);
+            }
+        });
+}
+
+#[tauri::command]
+fn new_file(app: AppHandle) {
+    create_and_open(&app);
+}
+
+#[tauri::command]
+fn open_file(app: AppHandle) {
+    pick_and_open(&app);
 }
 
 #[tauri::command]
@@ -85,6 +127,43 @@ fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn rename_file(
+    window: WebviewWindow,
+    files: tauri::State<OpenFiles>,
+    path: String,
+    new_name: String,
+) -> Result<String, String> {
+    let name = new_name.trim();
+    if name.is_empty() || name.contains('/') || name.contains(':') || name.starts_with('.') {
+        return Err("Invalid name".into());
+    }
+    let old = PathBuf::from(&path);
+    let mut target = old.with_file_name(name);
+    if !name.contains('.') {
+        target.set_extension("md");
+    }
+    if target == old {
+        return Ok(path);
+    }
+    let case_only = target.to_string_lossy().to_lowercase() == old.to_string_lossy().to_lowercase();
+    if target.exists() && !case_only {
+        return Err("A file with that name already exists".into());
+    }
+    fs::rename(&old, &target).map_err(|e| e.to_string())?;
+
+    let new_path = target.to_string_lossy().to_string();
+    files
+        .0
+        .lock()
+        .unwrap()
+        .insert(window.label().to_string(), new_path.clone());
+    if let Some(file_name) = target.file_name() {
+        let _ = window.set_title(&file_name.to_string_lossy());
+    }
+    Ok(new_path)
+}
+
+#[tauri::command]
 fn open_url(url: String) {
     if url.starts_with("http://") || url.starts_with("https://") || url.starts_with("mailto:") {
         let _ = std::process::Command::new("open").arg(url).spawn();
@@ -99,23 +178,28 @@ pub fn run() {
             initial_path,
             read_file,
             write_file,
-            open_url
+            open_url,
+            rename_file,
+            new_file,
+            open_file
         ])
         .setup(|app| {
             let menu = Menu::default(app.handle())?;
+            let new = MenuItem::with_id(app, "new", "New…", true, Some("CmdOrCtrl+N"))?;
             let open = MenuItem::with_id(app, "open", "Open…", true, Some("CmdOrCtrl+O"))?;
             for item in menu.items()? {
                 if let MenuItemKind::Submenu(sub) = item {
                     if sub.text()? == "File" {
-                        sub.insert(&open, 0)?;
+                        sub.insert(&new, 0)?;
+                        sub.insert(&open, 1)?;
                     }
                 }
             }
             app.set_menu(menu)?;
-            app.on_menu_event(|app, event| {
-                if event.id() == "open" {
-                    pick_and_open(app);
-                }
+            app.on_menu_event(|app, event| match event.id().as_ref() {
+                "new" => create_and_open(app),
+                "open" => pick_and_open(app),
+                _ => {}
             });
             Ok(())
         })
@@ -132,7 +216,7 @@ pub fn run() {
                     let h = handle.clone();
                     let _ = handle.run_on_main_thread(move || {
                         if h.webview_windows().is_empty() {
-                            pick_and_open(&h);
+                            show_launcher(&h);
                         }
                     });
                 }
@@ -148,7 +232,7 @@ pub fn run() {
         RunEvent::Reopen {
             has_visible_windows: false,
             ..
-        } => pick_and_open(app),
+        } => show_launcher(app),
         _ => {}
     });
 }

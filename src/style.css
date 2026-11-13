@@ -31,7 +31,52 @@ body {
 #editor {
   max-width: 720px;
   margin: 0 auto;
-  padding: 48px 32px 40vh;
+  padding: 64px 32px 40vh;
+}
+
+#titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+#title,
+#title-input {
+  font: 600 13px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  color: var(--muted);
+}
+
+#title {
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: text;
+}
+#title:hover {
+  background: var(--code-bg);
+  color: var(--fg);
+}
+#title.error {
+  color: #d83a3a;
+}
+
+#title-input {
+  width: 260px;
+  padding: 4px 8px;
+  text-align: center;
+  color: var(--fg);
+  background: var(--code-bg);
+  border: 1px solid var(--link);
+  border-radius: 6px;
+  outline: none;
 }
 
 .ProseMirror {
@@ -120,4 +165,35 @@ td {
 }
 th {
   background: var(--code-bg);
+}
+
+body.launcher #editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 36px 40px;
+}
+body.launcher .logo {
+  height: 72px;
+  margin-bottom: 14px;
+}
+@media (prefers-color-scheme: dark) {
+  body.launcher .logo {
+    filter: invert(1);
+  }
+}
+body.launcher button {
+  width: 100%;
+  font: inherit;
+  font-size: 15px;
+  padding: 9px 12px;
+  color: var(--fg);
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+body.launcher button:hover {
+  border-color: var(--muted);
 }

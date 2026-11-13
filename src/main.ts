@@ -4,15 +4,35 @@ import { Markdown } from "@tiptap/markdown";
 import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import logo from "./athens-logo.svg";
 import "./style.css";
 
 const SAVE_DELAY_MS = 400;
 
-const normalize = (s: string) => s.replace(/\s+$/, "") + "\n";
+// Tiptap writes empty paragraphs as `&nbsp;`; plain blank lines are what we want in the file.
+const normalize = (s: string) =>
+  s
+    .replace(/^&nbsp;$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s+$/, "") + "\n";
+
+function renderLauncher() {
+  document.body.classList.add("launcher");
+  document.getElementById("editor")!.innerHTML = `
+    <img class="logo" src="${logo}" alt="" />
+    <button id="new">New Markdown File…</button>
+    <button id="open">Open File…</button>
+  `;
+  document.getElementById("new")!.onclick = () => invoke("new_file");
+  document.getElementById("open")!.onclick = () => invoke("open_file");
+}
+
+const baseName = (p: string) => p.split("/").pop()!;
 
 async function main() {
-  const path = await invoke<string | null>("initial_path");
-  if (!path) return;
+  const initial = await invoke<string | null>("initial_path");
+  if (!initial) return renderLauncher();
+  let path: string = initial;
 
   let lastDisk = await invoke<string>("read_file", { path });
   let timer: number | undefined;
@@ -49,6 +69,52 @@ async function main() {
     synced = md;
     lastDisk = md;
   }
+
+  const header = document.createElement("div");
+  header.id = "titlebar";
+  header.setAttribute("data-tauri-drag-region", "");
+  const title = document.createElement("span");
+  title.id = "title";
+  title.textContent = baseName(path);
+  header.append(title);
+  document.body.prepend(header);
+
+  title.addEventListener("click", () => {
+    const input = document.createElement("input");
+    input.id = "title-input";
+    input.value = baseName(path);
+    input.spellcheck = false;
+    title.replaceWith(input);
+    input.focus();
+    input.setSelectionRange(0, input.value.replace(/\.[^.]*$/, "").length);
+
+    let done = false;
+    const finish = async (commit: boolean) => {
+      if (done) return;
+      done = true;
+      let failed = false;
+      if (commit && input.value.trim() !== baseName(path)) {
+        try {
+          await save();
+          path = await invoke<string>("rename_file", { path, newName: input.value });
+        } catch {
+          failed = true;
+        }
+      }
+      title.textContent = baseName(path);
+      input.replaceWith(title);
+      if (failed) {
+        title.classList.add("error");
+        setTimeout(() => title.classList.remove("error"), 1200);
+      }
+      editor.commands.focus();
+    };
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") finish(true);
+      if (e.key === "Escape") finish(false);
+    });
+    input.addEventListener("blur", () => finish(true));
+  });
 
   // Pick up edits made outside the app (git, agents) when the window regains focus.
   window.addEventListener("focus", async () => {
