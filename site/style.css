@@ -117,3 +117,7 @@ table.compare tr.me td:first-child { padding-left: 10px; }
   .post h1 { font-size: 30px; }
   .features { grid-template-columns: 1fr; }
 }
+
+.post figure { margin: 8px 0 28px; }
+.post figure img { display: block; width: 100%; height: auto; border: 1px solid var(--rule); border-radius: 10px; }
+.post figcaption { margin-top: 8px; color: var(--gray); font-size: 13px; }
