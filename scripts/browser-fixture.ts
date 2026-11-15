@@ -1,4 +1,22 @@
-import { chromium, webkit } from "playwright";
+import { chromium, webkit, type Page } from "playwright";
+
+export async function openContextToolbar(page: Page) {
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  if (await page.getByRole("toolbar", { name: "Formatting and insert" }).isVisible()) return;
+  await page.evaluate(() => {
+    const editor = (document.querySelector(".ProseMirror") as any).editor;
+    const node = editor.view.domAtPos(editor.state.selection.to).node;
+    (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement).scrollIntoView({ block: "center" });
+  });
+  const point = await page.evaluate(() => {
+    const editor = (document.querySelector(".ProseMirror") as any).editor;
+    const rect = editor.view.coordsAtPos(editor.state.selection.to);
+    return { x: rect.left + 2, y: (rect.top + rect.bottom) / 2 };
+  });
+  await page.mouse.click(point.x, point.y, { button: "right" });
+  await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  await page.getByRole("toolbar", { name: "Formatting and insert" }).waitFor();
+}
 
 export async function browserFixture(source: string) {
   const bundle = await Bun.build({ entrypoints: [new URL("../src/main.ts", import.meta.url).pathname], target: "browser", format: "iife" });
@@ -39,7 +57,7 @@ export async function browserFixture(source: string) {
       };
     }, { source });
     await page.goto(server.url.href);
-    await page.getByRole("toolbar", { name: "Formatting and insert" }).waitFor();
+    await page.locator(".ProseMirror").waitFor();
     return { page, errors, close: async () => { await browser?.close(); server.stop(true); } };
   } catch (error) { await browser?.close(); server.stop(true); throw error; }
 }

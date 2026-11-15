@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { browserFixture } from "./browser-fixture";
+import { browserFixture, openContextToolbar } from "./browser-fixture";
 
 const fixture = `---
 title: Comment fixture
@@ -33,7 +33,7 @@ try {
   assert.equal(await page.evaluate(() => (window as any).__fixture.writes.length), 0, "opening rewrote the file");
   assert.equal(await page.locator("#badge").count(), 0);
   assert.equal(await page.locator("#selection-actions").count(), 0);
-  await page.getByRole("toolbar", { name: "Formatting and insert" }).waitFor();
+  assert(!(await page.getByRole("toolbar", { name: "Formatting and insert" }).isVisible()));
   assert.equal(await page.locator(".ProseMirror p:empty").count(), 0);
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "horizontal overflow at native window width");
   const boxes = await page.locator(".comment-card").evaluateAll(cards => cards.map(card => ({ top: card.getBoundingClientRect().top, bottom: card.getBoundingClientRect().bottom })));
@@ -131,6 +131,7 @@ try {
   await page.waitForFunction(() => (window as any).__fixture.disk.includes("Edited."));
   assert((await page.evaluate(() => (window as any).__fixture.disk)).includes("[^source]:"));
   await page.locator(".ProseMirror > p").first().click({ clickCount: 3 });
+  await openContextToolbar(page);
   await page.getByRole("button", { name: "Footnote", exact: true }).click();
   await page.keyboard.insertText("A new footnote.");
   await page.waitForFunction(() => (window as any).__fixture.disk.includes("[^1]: A new footnote."));
@@ -146,7 +147,8 @@ try {
   await page.emulateMedia({ colorScheme: "light" });
   await page.setViewportSize({ width: 820, height: 920 });
   const toolbar = page.getByRole("toolbar", { name: "Formatting and insert" });
-  const beforeSelection = await toolbar.boundingBox();
+  assert(!(await toolbar.isVisible()), "toolbar should be hidden before selection");
+  const selectionWrites = await page.evaluate(() => (window as any).__fixture.writes.length);
   async function selectFirstParagraph() {
     const paragraph = page.locator(".ProseMirror > p").first();
     await paragraph.evaluate(element => element.scrollIntoView({ block: "center" }));
@@ -168,7 +170,16 @@ try {
   }
   await selectFirstParagraph();
   assert.equal(await page.locator("#selection-actions").count(), 0);
-  assert.equal((await toolbar.boundingBox())?.y, beforeSelection?.y, "toolbar moved with the text selection");
+  await toolbar.waitFor();
+  const menuBox = (await toolbar.boundingBox())!;
+  assert(menuBox.width <= 280 && menuBox.x >= 12 && menuBox.y > 38, "selection menu was not compact and viewport-contained");
+  await page.waitForTimeout(450);
+  assert.equal(await page.evaluate(() => (window as any).__fixture.writes.length), selectionWrites, "showing selection menu saved the document");
+  await page.screenshot({ path: new URL("../docs/toolbar.png", import.meta.url).pathname });
+  await page.keyboard.press("Escape");
+  assert(!(await toolbar.isVisible()), "Escape did not dismiss selection menu");
+  await selectFirstParagraph();
+  await toolbar.waitFor();
   await toolbar.getByRole("button", { name: "Bold", exact: true }).click();
   assert.equal(await page.locator(".ProseMirror strong").textContent(), "A plain selected phrase.");
   await page.waitForFunction(() => document.querySelector('#editor-toolbar button[aria-label="Bold"]')?.getAttribute("aria-pressed") === "true", undefined, { timeout: 5000 });
@@ -199,6 +210,8 @@ try {
   assert.equal(await page.locator(".ProseMirror strong").textContent(), "A plain selected phrase.");
 
   await page.locator(".ProseMirror > p").last().click();
+  await page.waitForFunction(() => (document.querySelector("#editor-toolbar") as HTMLElement).hidden);
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Image", exact: true }).click();
   const imageDialog = page.getByRole("dialog", { name: "Insert image", exact: true });
   await imageDialog.getByRole("button", { name: "Choose file…", exact: true }).click();
@@ -210,6 +223,7 @@ try {
   assert.equal(await page.getByRole("img", { name: "A [bracket] photo", exact: true }).count(), 1);
 
   await page.locator(".ProseMirror > p").last().click();
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Table", exact: true }).click();
   const insertTable = page.getByRole("dialog", { name: "Insert table", exact: true });
   await insertTable.getByRole("spinbutton", { name: "Rows", exact: true }).fill("3");
@@ -220,25 +234,32 @@ try {
   assert.equal(await table.locator("tr").first().locator("th").count(), 2);
   await table.locator("th").first().click();
   await page.keyboard.insertText("Header");
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Table", exact: true }).click();
   await page.getByRole("menuitem", { name: "Insert row below", exact: true }).click();
   assert.equal(await table.locator("tr").count(), 4);
   await table.locator("tr").nth(1).locator("td").first().click();
+  await page.waitForFunction(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.$from.node(-1).type.name === "tableCell");
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Table", exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete row", exact: true }).click();
   assert.equal(await table.locator("tr").count(), 3);
+  assert.equal(await table.locator("th").count(), 2, "deleting a body row removed the table header");
   await table.locator("th").first().click();
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Table", exact: true }).click();
   await page.getByRole("menuitem", { name: "Insert column right", exact: true }).click();
   assert.equal(await table.locator("tr").first().locator("th").count(), 3);
   await table.locator("th").nth(1).click();
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Table", exact: true }).click();
   await page.getByRole("menuitem", { name: "Delete column", exact: true }).click();
   assert.equal(await table.locator("tr").first().locator("th").count(), 2);
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Table", exact: true }).click();
-  await page.screenshot({ path: new URL("../docs/toolbar.png", import.meta.url).pathname });
   await page.getByRole("menuitem", { name: "Delete table", exact: true }).click();
   assert.equal(await table.count(), 0);
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Undo", exact: true }).click();
   assert.equal(await table.count(), 1);
   await page.waitForTimeout(500);
@@ -259,10 +280,13 @@ try {
   await page.evaluate(() => { (window as any).__fixture.disk = "<div>Read-only fixture</div>"; window.dispatchEvent(new Event("focus")); });
   await page.getByText(/Read-only: this file/).waitFor();
   await page.waitForFunction(() => (document.querySelector('#editor-toolbar button[aria-label="Image"]') as HTMLButtonElement)?.disabled);
-  assert(await toolbar.getByRole("button", { name: "Image", exact: true }).isDisabled());
-  assert(await toolbar.getByRole("button", { name: "Bold", exact: true }).isDisabled());
+  assert(!(await toolbar.isVisible()), "read-only document showed formatting menu");
   assert.deepEqual(errors, [], "browser errors");
-  console.log("Editor browser check passed: stable toolbar, formatting, image import, table editing, comments, footnotes, links, and external reload.");
+  console.log("Editor browser check passed: contextual toolbar, formatting, image import, table editing, comments, footnotes, links, and external reload.");
+} catch (error) {
+  console.error("Editor failure DOM:", await page.locator(".ProseMirror").innerHTML());
+  console.error("Editor failure selection:", await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.toJSON()));
+  throw error;
 } finally {
   await close();
 }

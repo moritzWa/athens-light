@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { browserFixture } from "./browser-fixture";
+import { browserFixture, openContextToolbar } from "./browser-fixture";
 
 const source = "Early[^beta]\n\n[^alpha]: Alpha detail.\n\nMiddle[^alpha]\n\nLast body paragraph.\n\n[^beta]: Beta detail.\n\n[^orphan]: Imported orphan content.";
 const { page, errors, close } = await browserFixture(source);
@@ -59,7 +59,7 @@ try {
   await page.waitForTimeout(500);
   assert.equal(await disk(), source, "opening normalized the file on disk");
   assert.equal(await page.evaluate(() => (window as any).__fixture.writes.length), 0);
-  assert(await toolbar.getByRole("button", { name: "Undo", exact: true }).isDisabled(), "opening entered undo history");
+  assert(await page.locator('#editor-toolbar button[aria-label="Undo"]').isDisabled(), "opening entered undo history");
   await page.screenshot({ path: new URL("../docs/footnotes-order.png", import.meta.url).pathname });
 
   await clickParagraphEnd();
@@ -89,17 +89,19 @@ try {
   assert.equal(await notes.locator(".footnote-content").textContent(), "First note.");
   await page.waitForFunction(() => !(window as any).__fixture.disk.includes("Delete this note"));
   assert(!(await disk()).includes("[^second]"));
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Undo", exact: true }).click();
   await waitReferenceCount(2);
   assert.equal(await notes.count(), 2);
   assert.deepEqual(await notes.locator(".footnote-number").allTextContents(), ["1", "2"]);
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Redo", exact: true }).click();
   await waitReferenceCount(1);
   assert.equal(await notes.count(), 1);
   await page.waitForTimeout(500);
   await reload((await disk()) + "\n\nExternal edit.");
   assert.equal(await notes.count(), 1, "deleted note reappeared on reload");
-  assert(await toolbar.getByRole("button", { name: "Undo", exact: true }).isDisabled(), "external reload kept stale undo history");
+  assert(await page.locator('#editor-toolbar button[aria-label="Undo"]').isDisabled(), "external reload kept stale undo history");
 
   await reload("One[^same] two[^same]\n\n[^same]: Shared note.");
   assert.deepEqual(await references.locator("button").allTextContents(), ["1", "1"]);
@@ -145,9 +147,11 @@ try {
   assert.deepEqual(await notes.evaluateAll(nodes => nodes.map(node => (node as HTMLElement).dataset.label)), ["clip", "first"]);
   assert.deepEqual(await references.locator("button").allTextContents(), ["1", "2"]);
   assert.equal(await notes.first().locator(".footnote-content").textContent(), "Clipboard note content.");
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Undo", exact: true }).click();
   await waitReferenceCount(1);
   assert.equal(await notes.count(), 1);
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Redo", exact: true }).click();
   await waitReferenceCount(2);
   assert.deepEqual(await notes.evaluateAll(nodes => nodes.map(node => (node as HTMLElement).dataset.label)), ["clip", "first"]);
@@ -156,6 +160,7 @@ try {
   assert.equal(await notes.count(), 0);
   assert.equal(await page.locator("[data-unused-footnote]").count(), 1);
   await clickParagraphEnd();
+  await openContextToolbar(page);
   await toolbar.getByRole("button", { name: "Footnote", exact: true }).click();
   await page.keyboard.insertText("New numbered note.");
   await page.waitForFunction(() => (window as any).__fixture.disk.includes("[^2]: New numbered note."));

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { browserFixture } from "./browser-fixture";
+import { browserFixture, openContextToolbar } from "./browser-fixture";
 
 const source = "Before the image.\n\n![Image fixture](assets/picture.png)\n\nAfter the image.";
 const { page, errors, close } = await browserFixture(source);
@@ -49,6 +49,7 @@ try {
   assert.equal(await page.locator(".ProseMirror > p").first().textContent(), "Before the image.");
   assert.equal(await page.locator(".ProseMirror > p").last().textContent(), "After the image.");
   await page.waitForFunction(() => !(window as any).__fixture.disk.includes("assets/picture.png"));
+  await openContextToolbar(page);
   await page.getByRole("toolbar").getByRole("button", { name: "Undo", exact: true }).click();
   await image.waitFor();
   await page.waitForFunction(() => (window as any).__fixture.disk.includes("![Image fixture](assets/picture.png)"));

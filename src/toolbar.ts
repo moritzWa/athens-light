@@ -24,8 +24,8 @@ export function mountToolbar(editor: Editor, options: Options) {
   bar.setAttribute("role", "toolbar");
   bar.setAttribute("aria-label", "Formatting and insert");
   shell.append(bar);
-  document.getElementById("titlebar")!.after(shell);
-  document.body.classList.add("has-toolbar");
+  shell.hidden = true;
+  document.body.append(shell);
   const panel = document.createElement("div");
   panel.className = "toolbar-panel";
   panel.hidden = true;
@@ -34,6 +34,9 @@ export function mountToolbar(editor: Editor, options: Options) {
   let anchor: HTMLElement | null = null;
   let generation = 0;
   let frame = 0;
+  let contextPoint: { x: number; y: number } | null = null;
+  let dismissed = false;
+  let selecting = false;
   const updates: (() => void)[] = [];
 
   // Native selectionchange can arrive after mouseup. Capture the visible range
@@ -89,11 +92,21 @@ export function mountToolbar(editor: Editor, options: Options) {
     bar.append(element);
   }
   function position() {
+    if (!shell.hidden) {
+      const selection = editor.state.selection;
+      const start = editor.view.coordsAtPos(selection.from);
+      const end = editor.view.coordsAtPos(selection.to);
+      const x = contextPoint?.x ?? start.left;
+      const y = contextPoint?.y ?? end.bottom;
+      const height = shell.offsetHeight;
+      shell.style.left = `${Math.max(12, Math.min(x, window.innerWidth - shell.offsetWidth - 12))}px`;
+      shell.style.top = `${Math.max(44, Math.min(y + 8, window.innerHeight - height - 12))}px`;
+    }
     if (panel.hidden || !anchor) return;
     const rect = anchor.getBoundingClientRect();
     const width = Math.min(320, window.innerWidth - 24);
     panel.style.width = `${width}px`;
-    panel.style.top = `${rect.bottom + 7}px`;
+    panel.style.top = `${Math.max(44, Math.min(rect.bottom + 7, window.innerHeight - panel.offsetHeight - 12))}px`;
     panel.style.left = `${Math.max(12, Math.min(rect.left, window.innerWidth - width - 12))}px`;
   }
   function open(element: HTMLElement, label: string, role = "dialog") {
@@ -107,6 +120,7 @@ export function mountToolbar(editor: Editor, options: Options) {
     panel.replaceChildren();
     panel.hidden = false;
     position();
+    if (!frame) frame = window.requestAnimationFrame(update);
     return true;
   }
   function field(form: HTMLFormElement, name: string, value: string, type = "text") {
@@ -140,7 +154,7 @@ export function mountToolbar(editor: Editor, options: Options) {
     element.append(heading);
     panel.append(element);
     element.addEventListener("submit", event => { event.preventDefault(); if (editor.isEditable) onSave(error); });
-    return { element, submit, finish: () => element.append(error, actions) };
+    return { element, submit, finish: () => { element.append(error, actions); position(); } };
   }
   function menuItem(label: string, action: () => unknown, enabled = true) {
     const item = document.createElement("button");
@@ -218,7 +232,6 @@ export function mountToolbar(editor: Editor, options: Options) {
     fields.finish();
     destination.focus();
   }, () => !editor.state.selection.$from.parent.type.spec.code, () => editor.isActive("link"));
-  separator();
   const lists = button("Lists", () => {
     if (!open(lists, "Lists", "menu")) return;
     menuItem("Bullet list", () => editor.commands.toggleBulletList(), editor.can().toggleBulletList());
@@ -280,7 +293,6 @@ export function mountToolbar(editor: Editor, options: Options) {
     fields.finish();
     rows.focus();
   }, () => !editor.state.selection.$from.parent.type.spec.code, () => editor.isActive("table"));
-  separator();
   button("Undo", () => apply(() => editor.commands.undo()), () => editor.can().undo());
   button("Redo", () => apply(() => editor.commands.redo()), () => editor.can().redo());
 
@@ -288,26 +300,67 @@ export function mountToolbar(editor: Editor, options: Options) {
     frame = 0;
     updates.forEach(refresh => refresh());
     table.title = editor.isActive("table") ? "Edit table" : "Insert table";
+    const selection = editor.state.selection;
+    const selectedText = selection instanceof TextSelection && !selection.empty && !!editor.state.doc.textBetween(selection.from, selection.to).trim();
+    const focused = editor.isFocused || shell.contains(document.activeElement) || panel.contains(document.activeElement);
+    shell.hidden = !editor.isEditable || selecting || dismissed || !(contextPoint || !panel.hidden || (selectedText && focused));
+    position();
   }
   const transaction = ({ transaction: tr }: { transaction: import("@tiptap/pm/state").Transaction }) => {
+    if (tr.selectionSet || tr.docChanged) dismissed = false;
+    if (tr.docChanged) contextPoint = null;
     if (tr.docChanged && tr.getMeta("preventUpdate")) { generation++; close(); }
     else if (bookmark && tr.docChanged) bookmark = bookmark.map(tr.mapping);
     if (!frame) frame = window.requestAnimationFrame(update);
   };
-  const outside = (event: PointerEvent) => { if (!panel.contains(event.target as Node) && !shell.contains(event.target as Node)) close(); };
+  const outside = (event: PointerEvent) => {
+    selecting = event.button === 0 && editor.view.dom.contains(event.target as Node);
+    if (!panel.contains(event.target as Node) && !shell.contains(event.target as Node)) { close(); contextPoint = null; shell.hidden = true; }
+  };
+  const context = (event: MouseEvent) => {
+    if (!editor.isEditable) return;
+    event.preventDefault();
+    close();
+    const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
+    if (editor.state.selection.empty && pos) editor.commands.setTextSelection(pos.pos);
+    editor.view.focus();
+    contextPoint = { x: event.clientX, y: event.clientY };
+    dismissed = false;
+    update();
+  };
+  const keydown = (event: KeyboardEvent) => {
+    if (editor.view.dom.contains(event.target as Node)) contextPoint = null;
+    if (event.key === "Escape" && (!shell.hidden || !panel.hidden)) {
+      restore(); close(); contextPoint = null;
+      editor.view.focus();
+      dismissed = true; shell.hidden = true;
+    }
+  };
+  const blur = () => { if (!frame) frame = window.requestAnimationFrame(update); };
+  const pointerup = () => { selecting = false; if (!frame) frame = window.requestAnimationFrame(update); };
+  const scroll = () => { position(); };
   editor.on("transaction", transaction);
+  editor.on("blur", blur);
+  editor.view.dom.addEventListener("contextmenu", context);
+  document.addEventListener("keydown", keydown);
   document.addEventListener("pointerdown", outside);
+  document.addEventListener("pointerup", pointerup);
   window.addEventListener("resize", position);
+  window.addEventListener("scroll", scroll);
   bar.addEventListener("scroll", position);
   update();
   return { destroy() {
     editor.off("transaction", transaction);
+    editor.off("blur", blur);
+    editor.view.dom.removeEventListener("contextmenu", context);
+    document.removeEventListener("keydown", keydown);
+    window.removeEventListener("scroll", scroll);
     document.removeEventListener("pointerdown", outside);
+    document.removeEventListener("pointerup", pointerup);
     window.removeEventListener("resize", position);
     bar.removeEventListener("mousedown", captureSelection, true);
     bar.removeEventListener("scroll", position);
     window.cancelAnimationFrame(frame);
     shell.remove(); panel.remove();
-    document.body.classList.remove("has-toolbar");
   } };
 }

@@ -18,7 +18,7 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Reloads a file when something else changes it
 - Cmd+N creates a new markdown file, Cmd+O opens one, and clicking the title renames the file
 - Cmd+K copies the active file's full path to the clipboard
-- A compact toolbar below the title holds formatting, links, comments, footnotes, images and tables. Selecting text never opens a floating formatting toolbar.
+- Selecting text opens a compact contextual menu for formatting, links, comments, footnotes, images and tables. No toolbar stays on screen while writing. Right-click at the caret for insertion controls, or inside a table for row and column actions. Escape dismisses the menu.
 - HTML comments appear as margin cards. Edit or delete a card, or select text and use Comment in the toolbar to add one. Comments stay in the Markdown file, with no separate database.
 - Footnotes show numbered references and editable notes collected at the end in first-reference order. Click a reference to jump to its note, or use Footnote in the toolbar to add one. Deleting the last reference removes the note; undo restores both. Named labels and multiline notes stay in standard Markdown. Unused definitions imported from a file stay in its source but are not shown as notes.
 - Insert tables with a row/column count. Inside a table, its toolbar menu adds or deletes rows and columns, or removes the table.
