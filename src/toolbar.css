@@ -1,0 +1,92 @@
+#editor-toolbar {
+  position: fixed;
+  top: 38px;
+  left: 0;
+  right: 0;
+  z-index: 9;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 760px;
+  min-height: 39px;
+  margin: auto;
+  padding: 0 14px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  white-space: nowrap;
+}
+.toolbar-row > button, .toolbar-row select {
+  flex: none;
+  height: 28px;
+  min-width: 28px;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font: 12px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  cursor: pointer;
+}
+.toolbar-row select { max-width: 110px; }
+.toolbar-row button:hover, .toolbar-row button[aria-pressed=true], .toolbar-row button[aria-expanded=true] { background: var(--code-bg); color: var(--fg); }
+.toolbar-row button:disabled, .toolbar-row select:disabled { opacity: 0.35; cursor: default; }
+.toolbar-row svg { display: block; width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.toolbar-row b, .toolbar-row i, .toolbar-row s { font-size: 15px; }
+.toolbar-separator { flex: none; width: 1px; height: 16px; margin: 0 5px; background: var(--line); }
+.has-toolbar #editor { padding-top: 104px; }
+.has-toolbar #comments { margin-top: 104px; }
+.toolbar-panel {
+  position: fixed;
+  z-index: 25;
+  box-sizing: border-box;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 4px 16px #00000010;
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+.toolbar-panel button {
+  padding: 7px 9px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.toolbar-panel button:hover { background: var(--code-bg); }
+.toolbar-panel button:disabled { opacity: 0.35; cursor: default; }
+.toolbar-panel > button { display: block; width: 100%; text-align: left; }
+.toolbar-panel form { padding: 7px; }
+.toolbar-panel label { display: block; margin-top: 10px; color: var(--muted); font-size: 12px; }
+.toolbar-panel input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  margin-top: 3px;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+.toolbar-panel input:focus { outline: 1px solid var(--link); }
+.toolbar-form-actions { display: flex; justify-content: flex-end; gap: 5px; margin-top: 12px; }
+.toolbar-panel button[type=submit] { background: var(--link); color: var(--bg); }
+.toolbar-error { margin: 8px 0 0; color: #b4690e; font-size: 12px; }
+.toolbar-error:empty { display: none; }
+.toolbar-file-button { margin-top: 8px; }
+.ProseMirror img { display: block; max-width: 100%; height: auto; }
+.ProseMirror table { table-layout: fixed; }
+.ProseMirror td, .ProseMirror th { overflow-wrap: anywhere; }
+.ProseMirror .selectedCell { background: color-mix(in srgb, var(--link) 12%, transparent); }
+@media (max-width: 640px) { .has-toolbar #comments { margin-top: 0; } }

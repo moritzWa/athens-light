@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/screenshot.png" alt="Athens Light editing a note with a heading, a task list, a table and a quote" width="760"></p>
 
-A tiny WYSIWYG markdown editor for macOS. Open a `.md` file, edit it as rich text, and it saves back to the same file. No vaults, no sync, no toolbar.
+A tiny WYSIWYG markdown editor for macOS. Open a `.md` file, edit it as rich text, and it saves back to the same file. No vaults or sync.
 
 Website and comparison of Mac markdown editors: **[athens-light.app](https://athens-light.app)**
 
@@ -18,8 +18,11 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Reloads a file when something else changes it
 - Cmd+N creates a new markdown file, Cmd+O opens one, and clicking the title renames the file
 - Cmd+K copies the active file's full path to the clipboard
-- HTML comments appear as margin cards. Edit or delete a card, or select text and use “+ Comment” to add one. Comments stay in the Markdown file, with no separate database.
-- Footnotes show numbered references and editable notes. Click a reference to jump to its note, or select text and use “+ Footnote” to add one. Named labels and multiline notes stay in standard Markdown.
+- A compact toolbar below the title holds formatting, links, comments, footnotes, images and tables. Selecting text never opens a floating formatting toolbar.
+- HTML comments appear as margin cards. Edit or delete a card, or select text and use Comment in the toolbar to add one. Comments stay in the Markdown file, with no separate database.
+- Footnotes show numbered references and editable notes collected at the end in first-reference order. Click a reference to jump to its note, or use Footnote in the toolbar to add one. Deleting the last reference removes the note; undo restores both. Named labels and multiline notes stay in standard Markdown. Unused definitions imported from a file stay in its source but are not shown as notes.
+- Insert tables with a row/column count. Inside a table, its toolbar menu adds or deletes rows and columns, or removes the table.
+- Insert images by URL, a path inside the document's folder, or local file. Chosen files are copied to an `assets` folder beside the document without overwriting existing images. Markdown keeps a relative path, not an app-specific URL.
 - Click a link to open it. Hover for a small destination preview with Copy and Edit actions.
 - Front matter, images, task lists and tables survive editing; files with other raw HTML open read-only
 - Light and dark mode follow the system
@@ -55,7 +58,7 @@ bunx tauri dev
 
 ## Tests
 
-Run regression tests with `bun test`. The browser check, `bun run test:browser`, uses headless Chromium. Install it first with `bunx playwright install chromium`.
+Run regression tests with `bun test` and native image-import tests with `cargo test --lib` in `src-tauri`. `bun run test:browser` checks the toolbar and runs a separate footnote behavior suite in headless Chromium. Install browsers with `bunx playwright install chromium webkit`; run the same suites in WebKit with `BROWSER=webkit bun run test:browser`.
 
 ## License
 

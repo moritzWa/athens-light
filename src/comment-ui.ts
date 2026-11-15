@@ -2,7 +2,6 @@ import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { commentId, commentText, validCommentText, commentAnchorRange, commentFocusKey } from "./comments";
 import "./comment-ui.css";
-import { insertFootnote } from "./footnotes";
 
 type Comment = { id: string; pos: number; node: ProseMirrorNode; anchor: Element | null };
 type Card = { element: HTMLElement; text: HTMLElement; form: HTMLFormElement; input: HTMLTextAreaElement; error: HTMLElement; editing: boolean };
@@ -17,23 +16,6 @@ export function mountComments(editor: Editor) {
   aside.id = "comments";
   aside.setAttribute("aria-label", "Document comments");
   layout.append(aside);
-  const add = document.createElement("button");
-  add.id = "add-comment";
-  add.type = "button";
-  add.textContent = "+ Comment";
-  add.title = "Comment on this paragraph";
-  add.hidden = true;
-  const actions = document.createElement("div");
-  actions.id = "selection-actions";
-  actions.hidden = true;
-  const footnote = document.createElement("button");
-  footnote.id = "add-footnote";
-  footnote.type = "button";
-  footnote.textContent = "+ Footnote";
-  footnote.addEventListener("mousedown", event => event.preventDefault());
-  footnote.addEventListener("click", () => insertFootnote(editor));
-  actions.append(add, footnote);
-  root.append(actions);
 
   let records: Comment[] = [];
   const cards = new Map<string, Card>();
@@ -208,27 +190,17 @@ export function mountComments(editor: Editor) {
       bottom = top + card.element.getBoundingClientRect().height + 12;
     }
     aside.style.minHeight = `${bottom}px`;
-    const { $from } = editor.state.selection;
-    const showAdd = editor.isEditable && !editor.state.selection.empty && (editor.isFocused || actions.contains(document.activeElement)) && $from.depth > 0 && !draft;
-    add.hidden = !showAdd;
-    actions.hidden = !showAdd;
-    footnote.disabled = !!editor.state.selection.$to.parent.type.spec.code;
-    if (showAdd) {
-      const paragraph = editor.view.nodeDOM($from.before(1)) as HTMLElement | null;
-      const rect = paragraph?.getBoundingClientRect();
-      const right = root.getBoundingClientRect().right;
-      actions.style.top = `${Math.max(78, Math.min(window.innerHeight - 36, rect?.top ?? 64))}px`;
-      actions.style.left = `${Math.max(8, Math.min(window.innerWidth - 200, right - 192))}px`;
-    }
   }
 
   function schedule() {
     if (!frame) frame = window.requestAnimationFrame(position);
   }
 
-  add.addEventListener("mousedown", event => event.preventDefault());
-  add.addEventListener("click", () => {
-    if (!editor.isEditable || draft) return;
+  function canAdd() {
+    return editor.isEditable && !editor.state.selection.empty && editor.state.selection.$from.depth > 0 && !draft;
+  }
+  function addComment() {
+    if (!canAdd()) return;
     const { $from } = editor.state.selection;
     if (!$from.depth) return;
     const id = commentId();
@@ -236,7 +208,7 @@ export function mountComments(editor: Editor) {
     active = id;
     refresh();
     cards.get(id)!.input.focus();
-  });
+  }
 
   const transaction = ({ transaction: tr }: { transaction: import("@tiptap/pm/state").Transaction }) => {
     if (draft && tr.docChanged) {
@@ -261,6 +233,8 @@ export function mountComments(editor: Editor) {
   refresh();
 
   return {
+    canAdd,
+    add: addComment,
     destroy() {
       editor.off("transaction", transaction);
       editor.off("focus", schedule);
@@ -272,7 +246,6 @@ export function mountComments(editor: Editor) {
       window.cancelAnimationFrame(frame);
       layout.before(root);
       layout.remove();
-      actions.remove();
     },
   };
 }

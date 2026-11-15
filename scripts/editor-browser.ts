@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chromium } from "playwright";
+import { browserFixture } from "./browser-fixture";
 
 const fixture = `---
 title: Comment fixture
@@ -20,43 +20,8 @@ Keep the explanation short. -->
 Plain Markdown<!-- This inline note stays exactly here. --> still works in other editors. There is no separate database or proprietary review format.
 `;
 
-const bundle = await Bun.build({ entrypoints: [new URL("../src/main.ts", import.meta.url).pathname], target: "browser", format: "iife" });
-assert(bundle.success, "frontend bundle failed");
-const js = bundle.outputs.find(output => output.path.endsWith(".js"))!;
-const css = bundle.outputs.find(output => output.path.endsWith(".css"))!;
-const server = Bun.serve({
-  port: 0,
-  hostname: "127.0.0.1",
-  fetch(request) {
-    const path = new URL(request.url).pathname;
-    if (path === "/app.js") return new Response(js, { headers: { "content-type": "text/javascript; charset=utf-8" } });
-    if (path === "/app.css") return new Response(css, { headers: { "content-type": "text/css; charset=utf-8" } });
-    return new Response("<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='/app.css'></head><body><div id='editor'></div><script src='/app.js'></script></body></html>", { headers: { "content-type": "text/html; charset=utf-8" } });
-  },
-});
-let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+const { page, errors, close } = await browserFixture(fixture);
 try {
-  browser = await chromium.launch({ headless: true });
-  const page = await browser.newPage({ viewport: { width: 820, height: 920 }, colorScheme: "light" });
-  const errors: string[] = [];
-  page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
-  await page.addInitScript(({ source }) => {
-    const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[] };
-    (window as any).__fixture = state;
-    Object.defineProperty(navigator, "clipboard", { value: { writeText: async (text: string) => { state.copies.push(text); } } });
-    (window as any).__TAURI_INTERNALS__ = {
-      metadata: { currentWindow: { label: "fixture" } },
-      transformCallback: () => 1,
-      invoke: async (command: string, args: any) => {
-        if (command === "initial_path") return "/comment-fixture.md";
-        if (command === "read_file") return state.disk;
-        if (command === "write_file") { state.disk = args.content; state.writes.push(args.content); }
-        if (command === "open_url") state.opens.push(args.url);
-        return 1;
-      },
-    };
-  }, { source: fixture });
-  await page.goto(server.url.href);
   try {
     await page.locator(".comment-card").nth(2).waitFor({ timeout: 10000 });
   } catch (error) {
@@ -67,6 +32,8 @@ try {
   await page.waitForTimeout(500);
   assert.equal(await page.evaluate(() => (window as any).__fixture.writes.length), 0, "opening rewrote the file");
   assert.equal(await page.locator("#badge").count(), 0);
+  assert.equal(await page.locator("#selection-actions").count(), 0);
+  await page.getByRole("toolbar", { name: "Formatting and insert" }).waitFor();
   assert.equal(await page.locator(".ProseMirror p:empty").count(), 0);
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "horizontal overflow at native window width");
   const boxes = await page.locator(".comment-card").evaluateAll(cards => cards.map(card => ({ top: card.getBoundingClientRect().top, bottom: card.getBoundingClientRect().bottom })));
@@ -85,7 +52,7 @@ try {
   assert((await page.evaluate(() => (window as any).__fixture.disk)).includes("<!-- This inline note stays exactly here. -->"));
 
   await page.locator(".ProseMirror p").first().click({ clickCount: 3 });
-  await page.getByRole("button", { name: "+ Comment", exact: true }).click();
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
   const draft = page.locator(".comment-draft");
   await draft.getByRole("textbox", { name: "Comment text" }).fill("Cannot close --> a comment here.");
   await draft.getByRole("button", { name: "Save", exact: true }).click();
@@ -164,15 +131,138 @@ try {
   await page.waitForFunction(() => (window as any).__fixture.disk.includes("Edited."));
   assert((await page.evaluate(() => (window as any).__fixture.disk)).includes("[^source]:"));
   await page.locator(".ProseMirror > p").first().click({ clickCount: 3 });
-  await page.getByRole("button", { name: "+ Footnote", exact: true }).click();
+  await page.getByRole("button", { name: "Footnote", exact: true }).click();
   await page.keyboard.insertText("A new footnote.");
   await page.waitForFunction(() => (window as any).__fixture.disk.includes("[^1]: A new footnote."));
   assert.equal(await page.locator("[data-footnote-reference]").count(), 2);
   assert.equal(await page.locator("[data-footnote-definition]").count(), 2);
   await page.screenshot({ path: new URL("../docs/footnotes.png", import.meta.url).pathname });
+
+  await page.evaluate(() => {
+    (window as any).__fixture.disk = "# Toolbar fixture\n\nA plain selected phrase.\n\nAnother paragraph.";
+    window.dispatchEvent(new Event("focus"));
+  });
+  await page.getByRole("heading", { name: "Toolbar fixture" }).waitFor();
+  await page.emulateMedia({ colorScheme: "light" });
+  await page.setViewportSize({ width: 820, height: 920 });
+  const toolbar = page.getByRole("toolbar", { name: "Formatting and insert" });
+  const beforeSelection = await toolbar.boundingBox();
+  async function selectFirstParagraph() {
+    const paragraph = page.locator(".ProseMirror > p").first();
+    await paragraph.evaluate(element => element.scrollIntoView({ block: "center" }));
+    const paragraphBox = await paragraph.boundingBox();
+    // Clear the previous highlight first, otherwise dragging inside it starts a
+    // native text drag/drop rather than a fresh text selection.
+    await paragraph.click({ position: { x: paragraphBox!.width - 2, y: paragraphBox!.height / 2 } });
+    const bounds = await paragraph.evaluate(element => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const rect = range.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, y: rect.top + rect.height / 2 };
+    });
+    await page.mouse.move(bounds.left + 0.5, bounds.y);
+    await page.mouse.down();
+    await page.mouse.move(bounds.right + 0.5, bounds.y, { steps: 8 });
+    await page.mouse.up();
+    assert.equal(await page.evaluate(() => window.getSelection()?.toString()), "A plain selected phrase.");
+  }
+  await selectFirstParagraph();
+  assert.equal(await page.locator("#selection-actions").count(), 0);
+  assert.equal((await toolbar.boundingBox())?.y, beforeSelection?.y, "toolbar moved with the text selection");
+  await toolbar.getByRole("button", { name: "Bold", exact: true }).click();
+  assert.equal(await page.locator(".ProseMirror strong").textContent(), "A plain selected phrase.");
+  await page.waitForFunction(() => document.querySelector('#editor-toolbar button[aria-label="Bold"]')?.getAttribute("aria-pressed") === "true", undefined, { timeout: 5000 });
+  await toolbar.getByRole("button", { name: "Italic", exact: true }).click();
+  assert.equal(await page.locator(".ProseMirror em").textContent(), "A plain selected phrase.");
+  await toolbar.getByRole("combobox", { name: "Text style" }).selectOption("heading2");
+  await page.getByRole("heading", { name: "A plain selected phrase." }).waitFor();
+  await toolbar.getByRole("combobox", { name: "Text style" }).selectOption("paragraph");
+  await toolbar.getByRole("button", { name: "Lists", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Bullet list", exact: true }).click();
+  assert.equal(await page.locator(".ProseMirror ul li").textContent(), "A plain selected phrase.");
+  await toolbar.getByRole("button", { name: "Lists", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Bullet list", exact: true }).click();
+  await selectFirstParagraph();
+  await toolbar.getByRole("button", { name: "Link", exact: true }).click();
+  const insertLink = page.getByRole("dialog", { name: "Insert link", exact: true });
+  assert.equal(await insertLink.getByRole("textbox", { name: "Link text", exact: true }).inputValue(), "A plain selected phrase.");
+  await insertLink.getByRole("textbox", { name: "Link URL", exact: true }).fill("https://example.com/toolbar");
+  await insertLink.getByRole("button", { name: "Insert", exact: true }).click();
+  try {
+    await page.getByRole("link", { name: "A plain selected phrase.", exact: true }).waitFor({ timeout: 5000 });
+  } catch (error) {
+    console.error(await page.locator(".ProseMirror").innerHTML());
+    console.error(await page.locator(".toolbar-panel").innerHTML());
+    console.error(await page.evaluate(() => ({ from: (document.querySelector(".ProseMirror") as any).editor.state.selection.from, to: (document.querySelector(".ProseMirror") as any).editor.state.selection.to })));
+    throw error;
+  }
+  assert.equal(await page.locator(".ProseMirror strong").textContent(), "A plain selected phrase.");
+
+  await page.locator(".ProseMirror > p").last().click();
+  await toolbar.getByRole("button", { name: "Image", exact: true }).click();
+  const imageDialog = page.getByRole("dialog", { name: "Insert image", exact: true });
+  await imageDialog.getByRole("button", { name: "Choose file…", exact: true }).click();
+  assert.equal(await imageDialog.getByRole("textbox", { name: "Image URL or path", exact: true }).inputValue(), "assets/my%20photo.png");
+  await imageDialog.getByRole("textbox", { name: "Alternative text", exact: true }).fill("A [bracket] photo");
+  await imageDialog.getByRole("button", { name: "Insert", exact: true }).click();
+  await page.waitForFunction(() => (document.querySelector(".ProseMirror img") as HTMLImageElement)?.naturalWidth > 0);
+  await page.waitForFunction(() => (window as any).__fixture.disk.includes("assets/my%20photo.png"));
+  assert.equal(await page.getByRole("img", { name: "A [bracket] photo", exact: true }).count(), 1);
+
+  await page.locator(".ProseMirror > p").last().click();
+  await toolbar.getByRole("button", { name: "Table", exact: true }).click();
+  const insertTable = page.getByRole("dialog", { name: "Insert table", exact: true });
+  await insertTable.getByRole("spinbutton", { name: "Rows", exact: true }).fill("3");
+  await insertTable.getByRole("spinbutton", { name: "Columns", exact: true }).fill("2");
+  await insertTable.getByRole("button", { name: "Insert", exact: true }).click();
+  const table = page.locator(".ProseMirror table");
+  assert.equal(await table.locator("tr").count(), 3);
+  assert.equal(await table.locator("tr").first().locator("th").count(), 2);
+  await table.locator("th").first().click();
+  await page.keyboard.insertText("Header");
+  await toolbar.getByRole("button", { name: "Table", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Insert row below", exact: true }).click();
+  assert.equal(await table.locator("tr").count(), 4);
+  await table.locator("tr").nth(1).locator("td").first().click();
+  await toolbar.getByRole("button", { name: "Table", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete row", exact: true }).click();
+  assert.equal(await table.locator("tr").count(), 3);
+  await table.locator("th").first().click();
+  await toolbar.getByRole("button", { name: "Table", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Insert column right", exact: true }).click();
+  assert.equal(await table.locator("tr").first().locator("th").count(), 3);
+  await table.locator("th").nth(1).click();
+  await toolbar.getByRole("button", { name: "Table", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Delete column", exact: true }).click();
+  assert.equal(await table.locator("tr").first().locator("th").count(), 2);
+  await toolbar.getByRole("button", { name: "Table", exact: true }).click();
+  await page.screenshot({ path: new URL("../docs/toolbar.png", import.meta.url).pathname });
+  await page.getByRole("menuitem", { name: "Delete table", exact: true }).click();
+  assert.equal(await table.count(), 0);
+  await toolbar.getByRole("button", { name: "Undo", exact: true }).click();
+  assert.equal(await table.count(), 1);
+  await page.waitForTimeout(500);
+  const saved = await page.evaluate(() => (window as any).__fixture.disk);
+  assert(saved.includes("A plain selected phrase."), "toolbar removed the selected prose");
+  assert(saved.includes("Header"), "table actions lost the existing header");
+  assert(saved.includes("![A \\[bracket\\] photo](assets/my%20photo.png)"), "image did not stay standard Markdown");
+  await page.evaluate(() => {
+    const state = (window as any).__fixture;
+    state.disk += "\nExternal paragraph.\n";
+    window.dispatchEvent(new Event("focus"));
+  });
+  await page.getByText("External paragraph.", { exact: true }).waitFor();
+  assert.equal(await page.getByRole("img", { name: "A [bracket] photo", exact: true }).count(), 1);
+  assert.equal(await table.count(), 1);
+  await page.setViewportSize({ width: 480, height: 800 });
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "toolbar caused horizontal page overflow");
+  await page.evaluate(() => { (window as any).__fixture.disk = "<div>Read-only fixture</div>"; window.dispatchEvent(new Event("focus")); });
+  await page.getByText(/Read-only: this file/).waitFor();
+  await page.waitForFunction(() => (document.querySelector('#editor-toolbar button[aria-label="Image"]') as HTMLButtonElement)?.disabled);
+  assert(await toolbar.getByRole("button", { name: "Image", exact: true }).isDisabled());
+  assert(await toolbar.getByRole("button", { name: "Bold", exact: true }).isDisabled());
   assert.deepEqual(errors, [], "browser errors");
-  console.log("Editor browser check passed: comments, footnotes, link opening/copy/edit/remove, safe URLs, and external reload.");
+  console.log("Editor browser check passed: stable toolbar, formatting, image import, table editing, comments, footnotes, links, and external reload.");
 } finally {
-  await browser?.close();
-  server.stop(true);
+  await close();
 }

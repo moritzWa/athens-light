@@ -1,3 +1,5 @@
+mod images;
+
 use std::{
     collections::HashMap,
     fs,
@@ -100,6 +102,9 @@ fn open_path(app: &AppHandle, path: PathBuf) {
         }
     };
     let path_str = path.to_string_lossy().to_string();
+    if let Some(parent) = path.parent() {
+        let _ = app.asset_protocol_scope().allow_directory(parent, true);
+    }
     let files = app.state::<OpenFiles>();
 
     let existing = files
@@ -209,6 +214,28 @@ fn write_file(path: String, content: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn pick_image(
+    app: AppHandle,
+    window: WebviewWindow,
+    path: String,
+) -> Result<Option<String>, String> {
+    let picked = app
+        .dialog()
+        .file()
+        .set_parent(&window)
+        .add_filter(
+            "Images",
+            &["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"],
+        )
+        .blocking_pick_file();
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+    let source = picked.into_path().map_err(|error| error.to_string())?;
+    images::copy_image(std::path::Path::new(&path), &source).map(Some)
+}
+
+#[tauri::command]
 fn rename_file(
     window: WebviewWindow,
     files: tauri::State<OpenFiles>,
@@ -300,6 +327,7 @@ pub fn run() {
             initial_path,
             read_file,
             write_file,
+            pick_image,
             open_url,
             rename_file,
             new_file,

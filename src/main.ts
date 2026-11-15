@@ -5,6 +5,8 @@ import { loadMarkdown } from "./document";
 import { normalizeMarkdown as normalize } from "./comments";
 import { mountComments } from "./comment-ui";
 import { mountLinks } from "./link-ui";
+import { mountToolbar } from "./toolbar";
+import { setImageDocumentPath } from "./images";
 import { createPathCopiedToast } from "./toast";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -47,6 +49,7 @@ async function main() {
       timer = window.setTimeout(save, SAVE_DELAY_MS);
     },
   });
+  setImageDocumentPath(editor, path);
 
   // What the editor produces for the untouched file. Saves only happen when
   // the content differs from this, so merely opening a file never rewrites it.
@@ -89,6 +92,8 @@ async function main() {
   editor.on("destroy", () => comments.destroy());
   const links = mountLinks(editor, url => invoke("open_url", { url }));
   editor.on("destroy", () => links.destroy());
+  const toolbar = mountToolbar(editor, { comment: comments.add, canComment: comments.canAdd, pickImage: () => invoke<string | null>("pick_image", { path }) });
+  editor.on("destroy", () => toolbar.destroy());
 
   title.addEventListener("click", () => {
     const input = document.createElement("input");
@@ -108,6 +113,7 @@ async function main() {
         try {
           await save();
           path = await invoke<string>("rename_file", { path, newName: input.value });
+          setImageDocumentPath(editor, path);
         } catch {
           failed = true;
         }

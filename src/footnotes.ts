@@ -1,18 +1,7 @@
 import { Node, type Editor } from "@tiptap/core";
-import type { Node as DocumentNode } from "@tiptap/pm/model";
 import { TextSelection } from "@tiptap/pm/state";
 import "./footnotes.css";
-
-const key = (label: string) => label.toLowerCase();
-function numbers(doc: DocumentNode) {
-  const result = new Map<string, number>();
-  for (const type of ["footnoteReference", "footnoteDefinition"]) {
-    doc.descendants(node => {
-      if (node.type.name === type && !result.has(key(node.attrs.label))) result.set(key(node.attrs.label), result.size + 1);
-    });
-  }
-  return result;
-}
+import { footnoteNumbers as numbers, footnoteKey as key, renderFootnote } from "./footnote-order";
 
 function jump(editor: Editor, label: string, type: string) {
   let target: number | undefined;
@@ -31,9 +20,15 @@ export const FootnoteReference = Node.create({
   inline: true,
   group: "inline",
   atom: true,
-  addAttributes: () => ({ label: { default: "1" } }),
-  parseHTML: () => [{ tag: "sup[data-footnote-reference]", getAttrs: el => ({ label: el.getAttribute("data-label") }) }],
-  renderHTML: ({ node }) => ["sup", { "data-footnote-reference": "", "data-label": node.attrs.label }, node.attrs.label],
+  addAttributes: () => ({ label: { default: "1" }, definition: { default: null, rendered: false } }),
+  parseHTML: () => [{ tag: "sup[data-footnote-reference]", getAttrs: el => {
+    const label = el.getAttribute("data-label");
+    if (!label || /[\s\]]/.test(label)) return false;
+    let definition = null;
+    try { definition = JSON.parse(el.getAttribute("data-definition") ?? "null"); } catch { /* Plain references have no clipboard payload. */ }
+    return { label, definition };
+  } }],
+  renderHTML: ({ node }) => ["sup", { "data-footnote-reference": "", "data-label": node.attrs.label, "data-definition": node.attrs.definition ? JSON.stringify(node.attrs.definition) : undefined }, node.attrs.label],
   markdownTokenizer: {
     name: "footnoteReference",
     level: "inline",
@@ -78,7 +73,10 @@ export const FootnoteDefinition = Node.create({
   defining: true,
   isolating: true,
   addAttributes: () => ({ label: { default: "1" } }),
-  parseHTML: () => [{ tag: "section[data-footnote-definition]", getAttrs: el => ({ label: el.getAttribute("data-label") }) }],
+  parseHTML: () => [{ tag: "section[data-footnote-definition]", getAttrs: el => {
+    const label = el.getAttribute("data-label");
+    return label && !/[\s\]]/.test(label) ? { label } : false;
+  } }],
   renderHTML: ({ node }) => ["section", { "data-footnote-definition": "", "data-label": node.attrs.label }, 0],
   markdownTokenizer: {
     name: "footnoteDefinition",
@@ -113,11 +111,7 @@ export const FootnoteDefinition = Node.create({
     const content = helpers.parseChildren(token.tokens ?? []);
     return { type: "footnoteDefinition", attrs: { label: token.label }, content: content.length ? content : [{ type: "paragraph" }] };
   },
-  renderMarkdown: (node, helpers) => {
-    const content = helpers.renderChildren(node.content ?? [], "\n\n");
-    const [first, ...rest] = content.split("\n");
-    return `[^${node.attrs?.label}]: ${first}` + (rest.length ? "\n" + rest.map(line => line ? `    ${line}` : "").join("\n") : "");
-  },
+  renderMarkdown: renderFootnote,
   addNodeView() {
     return ({ node, editor }) => {
       const dom = document.createElement("section");
@@ -149,7 +143,8 @@ export function insertFootnote(editor: Editor) {
   const end = editor.state.selection.$to;
   const insertion = end.parent.inlineContent ? end.pos : TextSelection.near(end, -1).to;
   if (!editor.isEditable || editor.state.doc.resolve(insertion).parent.type.spec.code) return;
-  const used = numbers(editor.state.doc);
+  const used = new Set<string>();
+  editor.state.doc.descendants(node => { if (["footnoteReference", "footnoteDefinition", "unusedFootnote"].includes(node.type.name)) used.add(key(node.attrs.label)); });
   let label = 1;
   while (used.has(String(label))) label++;
   const attrs = { label: String(label) };

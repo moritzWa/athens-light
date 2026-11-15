@@ -15,6 +15,7 @@ const { extensions } = await import("../src/extensions");
 const { loadMarkdown } = await import("../src/document");
 const { normalizeMarkdown, commentFocusKey } = await import("../src/comments");
 const { externalUrl, copyLink } = await import("../src/link-ui");
+const { localImagePath } = await import("../src/images");
 const editors: InstanceType<typeof Editor>[] = [];
 function open(content: string) {
   const element = document.createElement("div");
@@ -167,8 +168,69 @@ test("multiline footnotes preserve paragraphs, lists, and comments", () => {
 test("undefined references and unused definitions survive editing", () => {
   const source = "[^unused]: Keep me.\n\nText[^missing].";
   const editor = open(source);
-  expect(editor.getMarkdown()).toBe(source);
+  loadMarkdown(editor, source);
+  expect(editor.getMarkdown()).toBe("Text[^missing].\n\n[^unused]: Keep me.");
+  expect(editor.view.dom.querySelector("[data-footnote-definition]")).toBeNull();
+  expect(editor.view.dom.querySelector("[data-unused-footnote]")).not.toBeNull();
   expect(editor.view.dom.querySelector("[data-footnote-reference] button")?.getAttribute("title")).toBe("Missing footnote definition");
+});
+
+test("notes are collected at the end in first-reference order, not definition order", () => {
+  const source = "First[^b].\n\n[^a]: Note A.\n\nLast[^a].\n\n[^b]: Note B.";
+  const editor = open(plain);
+  let updates = 0;
+  editor.on("update", () => updates++);
+  loadMarkdown(editor, source);
+  expect(editor.getJSON().content?.map(node => node.type)).toEqual(["paragraph", "paragraph", "footnoteDefinition", "footnoteDefinition"]);
+  expect([...editor.view.dom.querySelectorAll<HTMLElement>("[data-footnote-definition]")].map(node => node.dataset.label)).toEqual(["b", "a"]);
+  expect([...editor.view.dom.querySelectorAll(".footnote-number")].map(node => node.textContent)).toEqual(["1", "2"]);
+  expect(updates).toBe(0);
+  expect(editor.can().undo()).toBe(false);
+});
+
+test("deleting the last reference removes its definition and undo restores both", () => {
+  const editor = open(plain);
+  loadMarkdown(editor, "Text[^a]\n\n[^a]: Keep this note on undo.");
+  let pos = 0;
+  editor.state.doc.descendants((node, index) => { if (node.type.name === "footnoteReference") pos = index; });
+  editor.commands.deleteRange({ from: pos, to: pos + 1 });
+  expect(editor.getMarkdown()).not.toContain("Keep this note");
+  expect(editor.view.dom.querySelector("[data-footnote-definition]")).toBeNull();
+  expect(editor.commands.undo()).toBe(true);
+  expect(editor.getMarkdown()).toContain("Text[^a]");
+  expect(editor.getMarkdown()).toContain("[^a]: Keep this note on undo.");
+  expect(editor.view.dom.querySelectorAll("[data-footnote-definition]").length).toBe(1);
+  editor.commands.redo();
+  expect(editor.getMarkdown()).not.toContain("[^a]");
+});
+
+test("a repeated note survives until its final reference is deleted", () => {
+  const editor = open(plain);
+  loadMarkdown(editor, "One[^a] two[^a]\n\n[^a]: Shared note.");
+  const removeFirst = () => {
+    let pos: number | undefined;
+    editor.state.doc.descendants((node, index) => { if (node.type.name === "footnoteReference") pos ??= index; });
+    editor.commands.deleteRange({ from: pos!, to: pos! + 1 });
+  };
+  removeFirst();
+  expect(editor.view.dom.querySelectorAll("[data-footnote-definition]").length).toBe(1);
+  expect(editor.getMarkdown()).toContain("Shared note.");
+  removeFirst();
+  expect(editor.getMarkdown()).not.toContain("Shared note.");
+});
+
+test("cut reference metadata restores its note when pasted back", () => {
+  const editor = open(plain);
+  loadMarkdown(editor, "Text[^a]\n\n[^a]: A cut note.");
+  let reference: any;
+  let pos = 0;
+  editor.state.doc.descendants((node, index) => { if (node.type.name === "footnoteReference") { reference = node.toJSON(); pos = index; } });
+  expect(reference.attrs.definition.type).toBe("footnoteDefinition");
+  editor.commands.deleteRange({ from: pos, to: pos + 1 });
+  expect(editor.getMarkdown()).not.toContain("A cut note.");
+  editor.commands.insertContentAt(pos, reference);
+  expect(editor.getMarkdown()).toContain("[^a]: A cut note.");
+  expect(editor.view.dom.querySelectorAll("[data-footnote-definition]").length).toBe(1);
 });
 
 test("GitHub two-space and tab-indented footnote continuations stay inside the note", () => {
@@ -211,4 +273,19 @@ test("the native WebView clipboard fallback copies without changing document con
     expect(copied).toBe("https://example.com/copied");
     expect(document.querySelector("textarea")).toBeNull();
   } finally { (document as any).execCommand = previous; }
+});
+
+test("local image rendering resolves against the document without changing its Markdown path", () => {
+  expect(localImagePath("assets/my%20photo.png", "/Users/example/My notes/note.md")).toBe("/Users/example/My notes/assets/my photo.png");
+  expect(localImagePath("https://example.com/picture.png", "/notes/file.md")).toBeNull();
+  const source = "![A \\[bracket\\] photo](assets/my%20photo.png)";
+  const editor = open(source);
+  expect(editor.getMarkdown().trim()).toBe(source);
+  expect(editor.getJSON().content?.[0]?.attrs?.src).toBe("assets/my%20photo.png");
+});
+
+test("image filenames with spaces and parentheses serialize as valid Markdown", () => {
+  const editor = open("Text.");
+  editor.commands.setImage({ src: "assets/my photo (1).png", alt: "A [label]" });
+  expect(editor.getMarkdown()).toContain("![A \\[label\\]](assets/my%20photo%20%281%29.png)");
 });
