@@ -1,10 +1,17 @@
 import Image from "@tiptap/extension-image";
 import type { Editor } from "@tiptap/core";
-import { convertFileSrc } from "@tauri-apps/api/core";
+import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import { NodeSelection } from "@tiptap/pm/state";
 import "./images.css";
 
 const paths = new WeakMap<Editor, string>();
+export async function copySelectedImage(editor: Editor) {
+  const selection = editor.state.selection;
+  if (!(selection instanceof NodeSelection) || selection.node.type.name !== "image") throw new Error("Select an image first");
+  const source = String(selection.node.attrs.src ?? "");
+  const path = paths.get(editor);
+  await invoke("copy_image_to_clipboard", { source: path ? localImagePath(source, path) ?? source : source });
+}
 export function setImageDocumentPath(editor: Editor, path: string) {
   paths.set(editor, path);
   editor.view.dispatch(editor.state.tr.setMeta("imageBase", true));

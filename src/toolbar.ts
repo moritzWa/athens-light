@@ -1,8 +1,9 @@
 import { getMarkRange, type Editor } from "@tiptap/core";
-import { TextSelection, type SelectionBookmark } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection, type SelectionBookmark } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
 import { insertFootnote } from "./footnotes";
 import { externalUrl } from "./link-ui";
+import { copySelectedImage } from "./images";
 import "./toolbar.css";
 
 type Options = { comment: () => void; canComment: () => boolean; pickImage: () => Promise<string | null> };
@@ -38,6 +39,11 @@ export function mountToolbar(editor: Editor, options: Options) {
   let dismissed = false;
   let selecting = false;
   const updates: (() => void)[] = [];
+  let copying = false;
+  const imageStatus = document.createElement("p");
+  imageStatus.className = "toolbar-error";
+  imageStatus.setAttribute("role", "status");
+  shell.append(imageStatus);
 
   // Native selectionchange can arrive after mouseup. Capture the visible range
   // before a fast toolbar click takes focus, rather than formatting an old caret.
@@ -270,6 +276,18 @@ export function mountToolbar(editor: Editor, options: Options) {
     fields.finish();
     source.focus();
   }, () => !editor.state.selection.$from.parent.type.spec.code);
+  const copyImage = button("Copy image", async () => {
+    if (copying) return;
+    copying = true;
+    imageStatus.textContent = "";
+    update();
+    try {
+      await copySelectedImage(editor);
+      imageStatus.textContent = "Image copied";
+    } catch {
+      imageStatus.textContent = "Could not copy this image. Check that it is available and try again.";
+    } finally { copying = false; update(); }
+  }, () => !copying);
   const table = button("Table", () => {
     if (!open(table, editor.isActive("table") ? "Edit table" : "Insert table", editor.isActive("table") ? "menu" : "dialog")) return;
     if (editor.isActive("table")) {
@@ -301,9 +319,12 @@ export function mountToolbar(editor: Editor, options: Options) {
     updates.forEach(refresh => refresh());
     table.title = editor.isActive("table") ? "Edit table" : "Insert table";
     const selection = editor.state.selection;
+    const selectedImage = selection instanceof NodeSelection && selection.node.type.name === "image";
+    copyImage.hidden = !selectedImage;
+    if (!selectedImage) imageStatus.textContent = "";
     const selectedText = selection instanceof TextSelection && !selection.empty && !!editor.state.doc.textBetween(selection.from, selection.to).trim();
     const focused = editor.isFocused || shell.contains(document.activeElement) || panel.contains(document.activeElement);
-    shell.hidden = !editor.isEditable || selecting || dismissed || !(contextPoint || !panel.hidden || (selectedText && focused));
+    shell.hidden = !editor.isEditable || selecting || dismissed || !(contextPoint || !panel.hidden || ((selectedText || selectedImage) && focused));
     position();
   }
   const transaction = ({ transaction: tr }: { transaction: import("@tiptap/pm/state").Transaction }) => {
@@ -321,6 +342,8 @@ export function mountToolbar(editor: Editor, options: Options) {
     if (!editor.isEditable) return;
     event.preventDefault();
     close();
+    const imageNode = (event.target as Element).closest(".document-image");
+    if (imageNode) editor.commands.setNodeSelection(editor.view.posAtDOM(imageNode, 0));
     const pos = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
     if (editor.state.selection.empty && pos) editor.commands.setTextSelection(pos.pos);
     editor.view.focus();

@@ -40,7 +40,7 @@ export async function browserFixture(source: string) {
     const errors: string[] = [];
     page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
     await page.addInitScript(({ source }) => {
-      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[] };
+      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[], imageCopies: [] as string[], failImageCopy: false };
       (window as any).__fixture = state;
       Object.defineProperty(navigator, "clipboard", { value: { writeText: async (text: string) => { state.copies.push(text); } } });
       (window as any).__TAURI_INTERNALS__ = {
@@ -51,7 +51,11 @@ export async function browserFixture(source: string) {
           if (command === "read_file") return state.disk;
           if (command === "write_file") { state.disk = args.content; state.writes.push(args.content); }
           if (command === "open_url") state.opens.push(args.url);
-          if (command === "pick_image") return "assets/my photo.png";
+           if (command === "pick_image") return "assets/my photo.png";
+           if (command === "copy_image_to_clipboard") {
+             if (state.failImageCopy) throw new Error("Image unavailable");
+             state.imageCopies.push(args.source);
+           }
           return 1;
         },
       };

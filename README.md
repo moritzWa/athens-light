@@ -23,6 +23,7 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Footnotes show numbered references and editable notes collected at the end in first-reference order. Click a reference to jump to its note, or use Footnote in the toolbar to add one. Deleting the last reference removes the note; undo restores both. Named labels and multiline notes stay in standard Markdown. Unused definitions imported from a file stay in its source but are not shown as notes.
 - Insert tables with a row/column count. Inside a table, its toolbar menu adds or deletes rows and columns, or removes the table.
 - Insert images by URL, a path inside the document's folder, or local file. Chosen files are copied to an `assets` folder beside the document without overwriting existing images. Markdown keeps a relative path, not an app-specific URL.
+- Select an image and choose Copy image in the contextual toolbar to copy the bitmap to the macOS clipboard.
 - Click a link to open it. Hover for a small destination preview with Copy and Edit actions.
 - Front matter, images, task lists and tables survive editing; files with other raw HTML open read-only
 - Light and dark mode follow the system

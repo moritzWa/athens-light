@@ -1,4 +1,5 @@
 mod images;
+mod image_clipboard;
 
 use std::{
     collections::HashMap,
@@ -328,6 +329,7 @@ pub fn run() {
             read_file,
             write_file,
             pick_image,
+            image_clipboard::copy_image_to_clipboard,
             open_url,
             rename_file,
             new_file,

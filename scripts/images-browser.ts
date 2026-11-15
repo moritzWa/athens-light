@@ -25,7 +25,16 @@ try {
   const overlay = wrapper.locator(".image-selection-overlay");
   assert.notEqual(await overlay.evaluate(element => getComputedStyle(element).boxShadow), "none");
   assert.notEqual(await overlay.evaluate(element => getComputedStyle(element).backgroundColor), "rgba(0, 0, 0, 0)");
-  await page.screenshot({ path: new URL("../docs/image-selection.png", import.meta.url).pathname });
+  const copy = page.getByRole("button", { name: "Copy image", exact: true });
+  await copy.waitFor();
+  await copy.click();
+  await page.getByRole("status").filter({ hasText: "Image copied" }).waitFor();
+  assert.deepEqual(await page.evaluate(() => (window as any).__fixture.imageCopies), ["/assets/picture.png"]);
+  assert(await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.node?.type.name === "image"));
+  await page.evaluate(() => { (window as any).__fixture.failImageCopy = true; });
+  await copy.click();
+  await page.getByRole("status").filter({ hasText: "Could not copy this image" }).waitFor();
+  await page.evaluate(() => { (window as any).__fixture.failImageCopy = false; });
 
   // Drag across the letters painted inside the fixture image. This must remain
   // one selected image, not a text/OCR selection or a native image drag.
@@ -41,7 +50,11 @@ try {
 
   await page.locator(".ProseMirror > p").last().click();
   await page.waitForFunction(() => !document.querySelector(".document-image")?.classList.contains("ProseMirror-selectednode"));
+  await copy.waitFor({ state: "hidden" });
   assert.equal(await overlay.evaluate(element => getComputedStyle(element).boxShadow), "none");
+  await wrapper.click({ button: "right" });
+  await copy.click();
+  assert.equal(await page.evaluate(() => (window as any).__fixture.imageCopies.length), 2);
   await wrapper.click();
   await page.keyboard.press("Backspace");
   await page.waitForFunction(() => !document.querySelector(".document-image"));
@@ -56,5 +69,5 @@ try {
   assert.equal(await page.locator(".ProseMirror > p").first().textContent(), "Before the image.");
   assert.equal(await page.locator(".ProseMirror > p").last().textContent(), "After the image.");
   assert.deepEqual(errors, []);
-  console.log("Image E2E passed: node selection, blue overlay, blocked bitmap text/drag gestures, deselection, no selection saves, delete and undo.");
+  console.log("Image E2E passed: selection, clipboard action and failure feedback, right-click targeting, no selection saves, delete and undo.");
 } finally { await close(); }
