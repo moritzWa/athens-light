@@ -12,7 +12,8 @@ use std::{
 
 use tauri::{
     menu::{Menu, MenuItem, MenuItemKind},
-    AppHandle, Manager, RunEvent, TitleBarStyle, WebviewUrl, WebviewWindow, WebviewWindowBuilder,
+    AppHandle, Emitter, Manager, RunEvent, TitleBarStyle, WebviewUrl, WebviewWindow,
+    WebviewWindowBuilder,
 };
 use tauri_plugin_dialog::DialogExt;
 
@@ -282,6 +283,8 @@ fn copy_file_path(app: &AppHandle) {
             let string_type = unsafe { objc2_app_kit::NSPasteboardTypeString };
             if !clipboard.setString_forType(&path, string_type) {
                 eprintln!("Could not copy document path to clipboard");
+            } else if let Err(error) = window.emit_to(window.label(), "path-copied", ()) {
+                eprintln!("Could not show copy confirmation: {error}");
             }
         });
     }

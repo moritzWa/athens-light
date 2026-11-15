@@ -2,6 +2,7 @@ import { Editor } from "@tiptap/core";
 import { extensions } from "./extensions";
 import { splitFrontMatter } from "./frontmatter";
 import { loadMarkdown } from "./document";
+import { createPathCopiedToast } from "./toast";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import logo from "./athens-logo.svg";
@@ -34,6 +35,8 @@ async function main() {
   if (!initial) return renderLauncher();
   let path: string = initial;
   document.title = baseName(path);
+  const showPathCopied = createPathCopiedToast(document);
+  await getCurrentWindow().listen("path-copied", showPathCopied);
 
   let lastDisk = await invoke<string>("read_file", { path });
   let { front, body } = splitFrontMatter(lastDisk);
