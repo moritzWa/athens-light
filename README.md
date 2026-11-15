@@ -19,14 +19,16 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Cmd+N creates a new markdown file, Cmd+O opens one, and clicking the title renames the file
 - Cmd+K copies the active file's full path to the clipboard
 - HTML comments appear as margin cards. Edit or delete a card, or select text and use “+ Comment” to add one. Comments stay in the Markdown file, with no separate database.
-- Front matter, images, task lists and tables survive editing; files with other raw HTML or footnotes open read-only
+- Footnotes show numbered references and editable notes. Click a reference to jump to its note, or select text and use “+ Footnote” to add one. Named labels and multiline notes stay in standard Markdown.
+- Click a link to open it. Hover for a small destination preview with Copy and Edit actions.
+- Front matter, images, task lists and tables survive editing; files with other raw HTML open read-only
 - Light and dark mode follow the system
 - Remembers the last document window's position and size across launches
 - Publishes the filename and file URL through macOS window metadata (`AXTitle` and `AXDocument`), so tools like Cronus can identify the active document, including after a rename
 
 ## Caveat
 
-Your first edit to a file rewrites it in the editor's markdown style, which can change bullet characters or spacing. Opening a file without editing it never rewrites it. Files that contain raw HTML (other than comments) or footnotes open read-only, because the editor cannot write them back faithfully. Comments refer to their paragraph, not a tracked text range; they do not include authors, replies or resolved states.
+Your first edit to a file rewrites it in the editor's markdown style, which can change bullet characters or spacing. Opening a file without editing it never rewrites it. Files that contain raw HTML (other than comments) open read-only, because the editor cannot write it back faithfully. Comments refer to their paragraph, not a tracked text range; they do not include authors, replies or resolved states.
 
 ## Build
 

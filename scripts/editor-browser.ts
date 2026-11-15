@@ -41,8 +41,9 @@ try {
   const errors: string[] = [];
   page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
   await page.addInitScript(({ source }) => {
-    const state = { disk: source, writes: [] as string[] };
+    const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[] };
     (window as any).__fixture = state;
+    Object.defineProperty(navigator, "clipboard", { value: { writeText: async (text: string) => { state.copies.push(text); } } });
     (window as any).__TAURI_INTERNALS__ = {
       metadata: { currentWindow: { label: "fixture" } },
       transformCallback: () => 1,
@@ -50,6 +51,7 @@ try {
         if (command === "initial_path") return "/comment-fixture.md";
         if (command === "read_file") return state.disk;
         if (command === "write_file") { state.disk = args.content; state.writes.push(args.content); }
+        if (command === "open_url") state.opens.push(args.url);
         return 1;
       },
     };
@@ -109,8 +111,67 @@ try {
   });
   await page.getByText("Reloaded externally.", { exact: true }).waitFor();
   assert.equal(await page.locator(".comment-card").count(), 1);
+
+  const beforeFootnotes = await page.evaluate(() => (window as any).__fixture.writes.length);
+  await page.evaluate(() => {
+    (window as any).__fixture.disk = "A [**linked phrase**](https://example.com/original) and a note[^source].\n\n[^source]: The **editable** footnote with [a source](https://example.org).\n";
+    window.dispatchEvent(new Event("focus"));
+  });
+  await page.locator("[data-footnote-definition]").waitFor();
+  await page.waitForTimeout(450);
+  assert.equal(await page.evaluate(() => (window as any).__fixture.writes.length), beforeFootnotes, "loading footnotes rewrote the file");
+  assert.equal(await page.locator("#badge").count(), 0);
+  const link = page.locator(".ProseMirror a").first();
+  assert.equal(await link.evaluate(element => getComputedStyle(element).cursor), "pointer");
+  await link.click();
+  await page.waitForFunction(() => (window as any).__fixture.opens.includes("https://example.com/original"));
+  await link.hover();
+  const popover = page.getByRole("dialog", { name: "Link", exact: true });
+  await popover.waitFor();
+  await popover.getByRole("button", { name: "Copy link", exact: true }).click();
+  assert.deepEqual(await page.evaluate(() => (window as any).__fixture.copies), ["https://example.com/original"]);
+  await popover.getByRole("button", { name: "Edit", exact: true }).click();
+  await popover.getByRole("textbox", { name: "Link URL", exact: true }).fill("javascript:alert(1)");
+  await popover.getByRole("button", { name: "Save", exact: true }).click();
+  assert(await popover.getByText("Enter link text and an http, https or mailto URL.").isVisible());
+  await popover.getByRole("textbox", { name: "Link URL", exact: true }).fill("https://example.net/updated");
+  await popover.getByRole("button", { name: "Save", exact: true }).click();
+  await page.waitForFunction(() => (window as any).__fixture.disk.includes("https://example.net/updated"));
+  assert.equal(await page.locator(".ProseMirror strong").first().textContent(), "linked phrase");
+  await link.hover();
+  await popover.getByRole("button", { name: "Edit", exact: true }).click();
+  await popover.getByRole("textbox", { name: "Link text", exact: true }).fill("Updated label");
+  await popover.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("link", { name: "Updated label", exact: true }).waitFor();
+  await page.getByRole("link", { name: "Updated label", exact: true }).hover();
+  await page.screenshot({ path: new URL("../docs/link-popover.png", import.meta.url).pathname });
+  await popover.getByRole("button", { name: "Edit", exact: true }).click();
+  await popover.getByRole("button", { name: "Remove link", exact: true }).click();
+  assert.equal(await page.getByRole("link", { name: "Updated label", exact: true }).count(), 0);
+  assert.equal(await page.locator(".ProseMirror strong").first().textContent(), "Updated label");
+
+  await page.locator("[data-footnote-reference] button").first().click();
+  assert(await page.evaluate(() => {
+    const from = (document.querySelector(".ProseMirror") as any).editor.state.selection.$from;
+    return Array.from({ length: from.depth }, (_, i) => from.node(i + 1).type.name).includes("footnoteDefinition");
+  }), "reference did not jump into the footnote");
+  await page.locator(".footnote-number").first().click();
+  assert.equal(await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.$from.parent.type.name), "paragraph");
+  const note = page.locator(".footnote-content p").first();
+  await note.click();
+  await page.keyboard.press("End");
+  await page.keyboard.insertText(" Edited.");
+  await page.waitForFunction(() => (window as any).__fixture.disk.includes("Edited."));
+  assert((await page.evaluate(() => (window as any).__fixture.disk)).includes("[^source]:"));
+  await page.locator(".ProseMirror > p").first().click({ clickCount: 3 });
+  await page.getByRole("button", { name: "+ Footnote", exact: true }).click();
+  await page.keyboard.insertText("A new footnote.");
+  await page.waitForFunction(() => (window as any).__fixture.disk.includes("[^1]: A new footnote."));
+  assert.equal(await page.locator("[data-footnote-reference]").count(), 2);
+  assert.equal(await page.locator("[data-footnote-definition]").count(), 2);
+  await page.screenshot({ path: new URL("../docs/footnotes.png", import.meta.url).pathname });
   assert.deepEqual(errors, [], "browser errors");
-  console.log("Comments browser check passed: layout, edit, add, safe rendering, narrow/dark views, external reload.");
+  console.log("Editor browser check passed: comments, footnotes, link opening/copy/edit/remove, safe URLs, and external reload.");
 } finally {
   await browser?.close();
   server.stop(true);

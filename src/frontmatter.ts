@@ -15,11 +15,11 @@ export function unsupportedSyntax(body: string): string | null {
   let unsupported: string | null = null;
   // Tokenize instead of stripping HTML with a regex: code examples stay literal,
   // inline HTML is protected too, and malformed comments never become editable.
-  marked.walkTokens(marked.lexer(body), token => {
+  const inspect = (token: import("marked").Token): void => {
     if (token.type === "html" && !isCommentSource(token.raw)) unsupported = "HTML";
-    if (token.type === "text" && /\[\^[^\]]+\]/.test(token.raw)) unsupported ??= "footnotes";
-    if (token.type === "link" && /^\[\^/.test(token.raw)) unsupported ??= "footnotes";
-    if (token.type === "def" && token.tag.startsWith("^")) unsupported ??= "footnotes";
-  });
+    // Marked's custom-token walker doesn't visit a custom block's children.
+    if (token.type === "footnoteDefinition") marked.walkTokens(token.tokens ?? [], inspect);
+  };
+  marked.walkTokens(marked.lexer(body), inspect);
   return unsupported;
 }

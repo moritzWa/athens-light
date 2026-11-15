@@ -1,0 +1,49 @@
+.ProseMirror a { cursor: pointer; }
+.link-popover {
+  position: fixed;
+  z-index: 30;
+  box-sizing: border-box;
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 4px 16px #00000010;
+  font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+.link-preview, .link-actions { display: flex; align-items: center; gap: 4px; }
+.link-preview[hidden], .link-popover form[hidden] { display: none; }
+.link-popover button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.link-popover button:hover { background: var(--code-bg); }
+.link-popover .link-destination { flex: 1; min-width: 0; justify-content: flex-start; color: var(--muted); }
+.link-destination span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-popover input {
+  box-sizing: border-box;
+  width: 100%;
+  margin-bottom: 7px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+.link-popover input:focus { outline: 1px solid var(--link); }
+.link-actions { justify-content: flex-end; }
+.link-actions button:first-child { margin-right: auto; color: var(--muted); }
+.link-popover button[type=submit] { background: var(--link); color: var(--bg); }
+.link-error { margin: 0; padding: 0 7px 5px; color: var(--muted); font-size: 12px; }
+.link-error:empty { display: none; }

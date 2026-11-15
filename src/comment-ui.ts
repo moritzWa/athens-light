@@ -2,6 +2,7 @@ import type { Editor } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { commentId, commentText, validCommentText, commentAnchorRange, commentFocusKey } from "./comments";
 import "./comment-ui.css";
+import { insertFootnote } from "./footnotes";
 
 type Comment = { id: string; pos: number; node: ProseMirrorNode; anchor: Element | null };
 type Card = { element: HTMLElement; text: HTMLElement; form: HTMLFormElement; input: HTMLTextAreaElement; error: HTMLElement; editing: boolean };
@@ -22,7 +23,17 @@ export function mountComments(editor: Editor) {
   add.textContent = "+ Comment";
   add.title = "Comment on this paragraph";
   add.hidden = true;
-  root.append(add);
+  const actions = document.createElement("div");
+  actions.id = "selection-actions";
+  actions.hidden = true;
+  const footnote = document.createElement("button");
+  footnote.id = "add-footnote";
+  footnote.type = "button";
+  footnote.textContent = "+ Footnote";
+  footnote.addEventListener("mousedown", event => event.preventDefault());
+  footnote.addEventListener("click", () => insertFootnote(editor));
+  actions.append(add, footnote);
+  root.append(actions);
 
   let records: Comment[] = [];
   const cards = new Map<string, Card>();
@@ -198,14 +209,16 @@ export function mountComments(editor: Editor) {
     }
     aside.style.minHeight = `${bottom}px`;
     const { $from } = editor.state.selection;
-    const showAdd = editor.isEditable && !editor.state.selection.empty && (editor.isFocused || document.activeElement === add) && $from.depth > 0 && !draft;
+    const showAdd = editor.isEditable && !editor.state.selection.empty && (editor.isFocused || actions.contains(document.activeElement)) && $from.depth > 0 && !draft;
     add.hidden = !showAdd;
+    actions.hidden = !showAdd;
+    footnote.disabled = !!editor.state.selection.$to.parent.type.spec.code;
     if (showAdd) {
       const paragraph = editor.view.nodeDOM($from.before(1)) as HTMLElement | null;
       const rect = paragraph?.getBoundingClientRect();
       const right = root.getBoundingClientRect().right;
-      add.style.top = `${Math.max(74, Math.min(window.innerHeight - 36, rect?.top ?? 64))}px`;
-      add.style.left = `${Math.min(window.innerWidth - 108, right - 92)}px`;
+      actions.style.top = `${Math.max(78, Math.min(window.innerHeight - 36, rect?.top ?? 64))}px`;
+      actions.style.left = `${Math.max(8, Math.min(window.innerWidth - 200, right - 192))}px`;
     }
   }
 
@@ -259,7 +272,7 @@ export function mountComments(editor: Editor) {
       window.cancelAnimationFrame(frame);
       layout.before(root);
       layout.remove();
-      add.remove();
+      actions.remove();
     },
   };
 }

@@ -4,6 +4,7 @@ import { splitFrontMatter } from "./frontmatter";
 import { loadMarkdown } from "./document";
 import { normalizeMarkdown as normalize } from "./comments";
 import { mountComments } from "./comment-ui";
+import { mountLinks } from "./link-ui";
 import { createPathCopiedToast } from "./toast";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -86,6 +87,8 @@ async function main() {
   synced = serialize();
   const comments = mountComments(editor);
   editor.on("destroy", () => comments.destroy());
+  const links = mountLinks(editor, url => invoke("open_url", { url }));
+  editor.on("destroy", () => links.destroy());
 
   title.addEventListener("click", () => {
     const input = document.createElement("input");
@@ -140,14 +143,6 @@ async function main() {
     if (e.metaKey && e.key === "s") {
       e.preventDefault();
       save();
-    }
-  });
-
-  document.addEventListener("click", (e) => {
-    const a = (e.target as HTMLElement).closest("a");
-    if (a && e.metaKey) {
-      e.preventDefault();
-      invoke("open_url", { url: a.href });
     }
   });
 

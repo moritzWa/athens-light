@@ -135,19 +135,28 @@
   box-shadow: -3px 0 0 #eaba46;
 }
 
-#add-comment {
+#selection-actions {
   position: fixed;
   z-index: 5;
-  padding: 5px 9px;
+  padding: 3px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 8px;
   background: var(--bg);
-  color: var(--link);
-  font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   box-shadow: 0 2px 8px #0000000a;
-  cursor: pointer;
   transform: translateY(-100%);
 }
+
+#selection-actions button {
+  padding: 5px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--link);
+  font: 12px/1.4 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  cursor: pointer;
+}
+#selection-actions button:hover { background: var(--code-bg); }
+#selection-actions button:disabled { opacity: 0.5; cursor: default; }
 
 @media (max-width: 640px) {
   #document-layout.with-comments {

@@ -1,0 +1,31 @@
+[data-footnote-reference] button {
+  padding: 0 2px;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+}
+
+[data-footnote-definition] {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+}
+
+.footnote-number {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--link);
+  font: inherit;
+  cursor: pointer;
+}
+
+.footnote-content { flex: 1; min-width: 0; }
+.footnote-content > :last-child { margin-bottom: 0; }
+[data-footnote-definition] + [data-footnote-definition] { border-top: 0; padding-top: 0; margin-top: 8px; }

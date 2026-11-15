@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "bun test scripts",
-    "test:browser": "bun scripts/comments-browser.ts",
+    "test:browser": "bun scripts/editor-browser.ts",
     "dev": "vite",
     "build": "vite build",
     "tauri": "tauri"

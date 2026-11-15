@@ -14,6 +14,7 @@ const { Editor } = await import("@tiptap/core");
 const { extensions } = await import("../src/extensions");
 const { loadMarkdown } = await import("../src/document");
 const { normalizeMarkdown, commentFocusKey } = await import("../src/comments");
+const { externalUrl, copyLink } = await import("../src/link-ui");
 const editors: InstanceType<typeof Editor>[] = [];
 function open(content: string) {
   const element = document.createElement("div");
@@ -131,11 +132,83 @@ test("malformed comments and inline HTML cannot bypass read-only protection", ()
   }
 });
 
-test("other raw HTML and footnotes still use the read-only safety policy", () => {
+test("other raw HTML still uses the read-only safety policy", () => {
   const editor = open(plain);
-  for (const [source, reason] of [["<div>HTML content</div>", "HTML"], ["Text[^1]\n\n[^1]: Note", "footnotes"]]) {
+  for (const [source, reason] of [["<div>HTML content</div>", "HTML"]]) {
     expect(loadMarkdown(editor, source!)).toBe(reason);
     expect(editor.isEditable).toBe(false);
     expect(editor.getJSON().content?.some(node => node.type === "htmlComment")).toBe(false);
   }
+});
+
+test("named and repeated footnotes round-trip without making the file read-only", () => {
+  const source = "Text[^source] and again[^source].\n\n[^source]: A **bold** note with [a link](https://example.com).";
+  const editor = open(source);
+  expect(loadMarkdown(editor, source)).toBeNull();
+  expect(editor.isEditable).toBe(true);
+  expect(editor.view.dom.querySelectorAll("[data-footnote-reference]").length).toBe(2);
+  expect(editor.view.dom.querySelectorAll("[data-footnote-definition]").length).toBe(1);
+  expect(editor.getMarkdown()).toBe(source);
+  editor.commands.insertContentAt(1, "Edited ");
+  expect(editor.getMarkdown()).toBe("Edited " + source);
+});
+
+test("multiline footnotes preserve paragraphs, lists, and comments", () => {
+  const source = "Text[^1].\n\n[^1]: First paragraph.\n\n    Second paragraph.\n\n    - A list item\n    - Another<!-- note -->";
+  const editor = open(source);
+  expect(loadMarkdown(editor, source)).toBeNull();
+  const saved = editor.getMarkdown();
+  expect(saved).toContain("    Second paragraph.");
+  expect(saved).toContain("<!-- note -->");
+  loadMarkdown(editor, saved);
+  expect(editor.getMarkdown()).toBe(saved);
+});
+
+test("undefined references and unused definitions survive editing", () => {
+  const source = "[^unused]: Keep me.\n\nText[^missing].";
+  const editor = open(source);
+  expect(editor.getMarkdown()).toBe(source);
+  expect(editor.view.dom.querySelector("[data-footnote-reference] button")?.getAttribute("title")).toBe("Missing footnote definition");
+});
+
+test("GitHub two-space and tab-indented footnote continuations stay inside the note", () => {
+  for (const indent of ["  ", "\t"]) {
+    const editor = open(`Text[^1].\n\n[^1]: First line.\n${indent}Second line.\n\n${indent}A second paragraph.`);
+    const note = editor.getJSON().content?.find(node => node.type === "footnoteDefinition");
+    expect(note?.content?.length).toBe(2);
+    expect(editor.view.dom.querySelector(".footnote-content")?.textContent).toContain("A second paragraph.");
+    const saved = editor.getMarkdown();
+    loadMarkdown(editor, saved);
+    expect(editor.getMarkdown()).toBe(saved);
+  }
+});
+
+test("footnote examples in code stay literal and raw HTML inside notes stays protected", () => {
+  const source = "Example `[^label]`.\n\n```md\n[^label]: Literal example\n```";
+  const editor = open(source);
+  expect(editor.view.dom.querySelector("[data-footnote-reference]")).toBeNull();
+  expect(editor.view.dom.querySelector("[data-footnote-definition]")).toBeNull();
+  expect(editor.getMarkdown()).toBe(source);
+  expect(loadMarkdown(editor, "Text[^1]\n\n[^1]: <script>unsafe</script>")).toBe("HTML");
+});
+
+test("link destinations only open safe external URL schemes", () => {
+  expect(externalUrl("https://example.com/path")).toBe("https://example.com/path");
+  expect(externalUrl("mailto:hello@example.com")).toBe("mailto:hello@example.com");
+  for (const value of ["javascript:alert(1)", "data:text/html,hello", "file:///etc/passwd", "/relative", "not a URL"]) expect(externalUrl(value)).toBeNull();
+});
+
+test("the native WebView clipboard fallback copies without changing document content", async () => {
+  let copied = "";
+  const previous = (document as any).execCommand;
+  (document as any).execCommand = (command: string) => {
+    expect(command).toBe("copy");
+    copied = (document.activeElement as HTMLTextAreaElement).value;
+    return true;
+  };
+  try {
+    await copyLink("https://example.com/copied");
+    expect(copied).toBe("https://example.com/copied");
+    expect(document.querySelector("textarea")).toBeNull();
+  } finally { (document as any).execCommand = previous; }
 });
