@@ -19,6 +19,7 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Cmd+N creates a new markdown file, Cmd+O opens one, and clicking the title renames the file
 - Front matter, images, task lists and tables survive editing; files with raw HTML or footnotes open read-only
 - Light and dark mode follow the system
+- Publishes the filename and file URL through macOS window metadata (`AXTitle` and `AXDocument`), so tools like Cronus can identify the active document, including after a rename
 
 ## Caveat
 

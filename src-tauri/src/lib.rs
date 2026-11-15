@@ -21,7 +21,41 @@ static NEXT_WINDOW: AtomicUsize = AtomicUsize::new(0);
 #[derive(Default)]
 struct OpenFiles(Mutex<HashMap<String, String>>);
 
+// NSWindow's represented URL is exposed as AXDocument to accessibility clients
+// such as Cronus. A title alone identifies the name, but not the document path.
+fn publish_document_url(window: &WebviewWindow, path: &std::path::Path) {
+    #[cfg(target_os = "macos")]
+    {
+        let window = window.clone();
+        let path = path.to_path_buf();
+        let dispatcher = window.clone();
+        if let Err(error) = dispatcher.run_on_main_thread(move || {
+            let Ok(native) = window.ns_window() else {
+                return;
+            };
+            let Some(url) = objc2_foundation::NSURL::from_file_path(&path) else {
+                return;
+            };
+            // Tauri owns the NSWindow; keep the WebviewWindow alive and access
+            // AppKit only on the main thread.
+            let native = unsafe { &*native.cast::<objc2_app_kit::NSWindow>() };
+            native.setRepresentedURL(Some(&url));
+        }) {
+            eprintln!("Could not publish document metadata: {error}");
+        }
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = (window, path);
+}
+
 fn open_path(app: &AppHandle, path: PathBuf) {
+    let path = match std::path::absolute(path) {
+        Ok(path) => path,
+        Err(error) => {
+            eprintln!("Could not resolve document path: {error}");
+            return;
+        }
+    };
     let path_str = path.to_string_lossy().to_string();
     let files = app.state::<OpenFiles>();
 
@@ -45,13 +79,16 @@ fn open_path(app: &AppHandle, path: PathBuf) {
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "Athens Light".into());
 
-    let _ = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+    let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title(title)
         .inner_size(820.0, 920.0)
         .tabbing_identifier("athens-light")
         .title_bar_style(TitleBarStyle::Overlay)
         .hidden_title(true)
         .build();
+    if let Ok(window) = window {
+        publish_document_url(&window, &path);
+    }
 
     if let Some(launcher) = app.get_webview_window("launcher") {
         let _ = launcher.close();
@@ -160,6 +197,7 @@ fn rename_file(
     if let Some(file_name) = target.file_name() {
         let _ = window.set_title(&file_name.to_string_lossy());
     }
+    publish_document_url(&window, &target);
     Ok(new_path)
 }
 

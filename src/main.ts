@@ -32,6 +32,7 @@ async function main() {
   const initial = await invoke<string | null>("initial_path");
   if (!initial) return renderLauncher();
   let path: string = initial;
+  document.title = baseName(path);
 
   let lastDisk = await invoke<string>("read_file", { path });
   let { front, body } = splitFrontMatter(lastDisk);
@@ -105,6 +106,7 @@ async function main() {
         }
       }
       title.textContent = baseName(path);
+      document.title = baseName(path);
       input.replaceWith(title);
       if (failed) {
         title.classList.add("error");
