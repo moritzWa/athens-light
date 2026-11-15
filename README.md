@@ -39,10 +39,16 @@ You need Rust, [Bun](https://bun.sh), and Xcode command line tools.
 
 ```sh
 bun install
-bunx tauri build --bundles app
+bun run build:mac
 ```
 
 The app ends up in `src-tauri/target/release/bundle/macos/Athens Light.app`. Copy it to `/Applications`.
+
+macOS builds use the project's Developer ID certificate from Keychain. Other developers can set `APPLE_SIGNING_IDENTITY` to their own certificate. The build fails if the certificate is unavailable; it must not silently fall back to ad-hoc signing for an installed app. `build:mac` also verifies the bundle's signature and stable identity. For throwaway development, use `bunx tauri dev` instead.
+
+### Documents folder permission
+
+macOS may ask once when a document loads images from a protected folder. Subsequent launches and signed updates keep that consent. Switching from an old ad-hoc build to the signed app may require one final approval. No Full Disk Access is needed. See [the investigation](docs/macos-file-access.md) for why folder bookmarks are not the fix for this build.
 
 To make it the default for `.md` files, use Finder (Get Info, Open with, Change All) or [`duti`](https://github.com/moretension/duti):
 
@@ -59,6 +65,8 @@ bunx tauri dev
 ## Tests
 
 Run regression tests with `bun test` and native image-import tests with `cargo test --lib` in `src-tauri`. `bun run test:browser` checks the toolbar and runs a separate footnote behavior suite in headless Chromium. Install browsers with `bunx playwright install chromium webkit`; run the same suites in WebKit with `BROWSER=webkit bun run test:browser`.
+
+After `bun run build:mac`, `bun run test:mac-signing` changes and re-signs a temporary bundle copy, then checks that it still satisfies the original build's designated requirement. This tests privacy-identity continuity without opening an app or accessing user documents.
 
 ## License
 

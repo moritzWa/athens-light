@@ -8,6 +8,8 @@
     "test:browser": "bun scripts/editor-browser.ts && bun scripts/footnotes-browser.ts && bun scripts/images-browser.ts",
     "dev": "vite",
     "build": "vite build",
+    "build:mac": "tauri build --bundles app && bun scripts/verify-macos-signature.ts",
+    "test:mac-signing": "bun scripts/test-macos-signing.ts",
     "tauri": "tauri"
   },
   "dependencies": {
