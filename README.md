@@ -17,6 +17,7 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Auto-saves to the file as you type
 - Reloads a file when something else changes it
 - Cmd+N creates a new markdown file, Cmd+O opens one, and clicking the title renames the file
+- Cmd+K copies the active file's full path to the clipboard
 - Front matter, images, task lists and tables survive editing; files with raw HTML or footnotes open read-only
 - Light and dark mode follow the system
 - Remembers the last document window's position and size across launches

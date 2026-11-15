@@ -252,6 +252,43 @@ fn open_url(url: String) {
     }
 }
 
+fn copy_file_path(app: &AppHandle) {
+    #[cfg(target_os = "macos")]
+    {
+        let app = app.clone();
+        let dispatcher = app.clone();
+        let _ = dispatcher.run_on_main_thread(move || {
+            let Some(window) = app
+                .webview_windows()
+                .into_values()
+                .find(|window| window.is_focused().unwrap_or(false))
+            else {
+                return;
+            };
+            let path = app
+                .state::<OpenFiles>()
+                .0
+                .lock()
+                .unwrap()
+                .get(window.label())
+                .cloned();
+            let Some(path) = path else {
+                return; // The launcher has no file path to copy.
+            };
+            let clipboard = objc2_app_kit::NSPasteboard::generalPasteboard();
+            let path = objc2_foundation::NSString::from_str(&path);
+            clipboard.clearContents();
+            // This immutable AppKit constant is initialized by the framework.
+            let string_type = unsafe { objc2_app_kit::NSPasteboardTypeString };
+            if !clipboard.setString_forType(&path, string_type) {
+                eprintln!("Could not copy document path to clipboard");
+            }
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = app;
+}
+
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -269,11 +306,19 @@ pub fn run() {
             let menu = Menu::default(app.handle())?;
             let new = MenuItem::with_id(app, "new", "New…", true, Some("CmdOrCtrl+N"))?;
             let open = MenuItem::with_id(app, "open", "Open…", true, Some("CmdOrCtrl+O"))?;
+            let copy_path = MenuItem::with_id(
+                app,
+                "copy-path",
+                "Copy File Path",
+                true,
+                Some("CmdOrCtrl+K"),
+            )?;
             for item in menu.items()? {
                 if let MenuItemKind::Submenu(sub) = item {
                     if sub.text()? == "File" {
                         sub.insert(&new, 0)?;
                         sub.insert(&open, 1)?;
+                        sub.insert(&copy_path, 2)?;
                     }
                 }
             }
@@ -281,6 +326,7 @@ pub fn run() {
             app.on_menu_event(|app, event| match event.id().as_ref() {
                 "new" => create_and_open(app),
                 "open" => pick_and_open(app),
+                "copy-path" => copy_file_path(app),
                 _ => {}
             });
             Ok(())
