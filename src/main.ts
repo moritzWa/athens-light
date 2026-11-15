@@ -2,6 +2,8 @@ import { Editor } from "@tiptap/core";
 import { extensions } from "./extensions";
 import { splitFrontMatter } from "./frontmatter";
 import { loadMarkdown } from "./document";
+import { normalizeMarkdown as normalize } from "./comments";
+import { mountComments } from "./comment-ui";
 import { createPathCopiedToast } from "./toast";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -9,13 +11,6 @@ import logo from "./athens-logo.svg";
 import "./style.css";
 
 const SAVE_DELAY_MS = 400;
-
-// Tiptap writes empty paragraphs as `&nbsp;`; plain blank lines are what we want in the file.
-const normalize = (s: string) =>
-  s
-    .replace(/^&nbsp;$/gm, "")
-    .replace(/\n{3,}/g, "\n\n")
-    .replace(/\s+$/, "") + "\n";
 
 function renderLauncher() {
   document.body.classList.add("launcher");
@@ -45,8 +40,6 @@ async function main() {
   const editor = new Editor({
     element: document.getElementById("editor")!,
     extensions,
-    content: body,
-    contentType: "markdown",
     autofocus: "start",
     onUpdate: () => {
       window.clearTimeout(timer);
@@ -57,7 +50,7 @@ async function main() {
   // What the editor produces for the untouched file. Saves only happen when
   // the content differs from this, so merely opening a file never rewrites it.
   const serialize = () => front + normalize(editor.getMarkdown());
-  let synced = serialize();
+  let synced: string;
 
   async function save() {
     window.clearTimeout(timer);
@@ -90,6 +83,9 @@ async function main() {
     }
   }
   load();
+  synced = serialize();
+  const comments = mountComments(editor);
+  editor.on("destroy", () => comments.destroy());
 
   title.addEventListener("click", () => {
     const input = document.createElement("input");

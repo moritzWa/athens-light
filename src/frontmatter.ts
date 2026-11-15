@@ -1,3 +1,6 @@
+import { marked } from "marked";
+import { isCommentSource } from "./comments";
+
 const FRONT_MATTER = /^---\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/;
 
 // Front matter is kept out of the editor and put back untouched on save.
@@ -9,8 +12,14 @@ export function splitFrontMatter(text: string): { front: string; body: string } 
 
 // Syntax the editor cannot write back faithfully. Files that use it open read-only.
 export function unsupportedSyntax(body: string): string | null {
-  const stripped = body.replace(/^(```|~~~)[\s\S]*?^\1/gm, "");
-  if (/^[ \t]*<\/?[a-zA-Z!][^>]*>/m.test(stripped)) return "HTML";
-  if (/^\[\^[^\]]+\]:/m.test(stripped) || /\[\^[^\]]+\]/.test(stripped)) return "footnotes";
-  return null;
+  let unsupported: string | null = null;
+  // Tokenize instead of stripping HTML with a regex: code examples stay literal,
+  // inline HTML is protected too, and malformed comments never become editable.
+  marked.walkTokens(marked.lexer(body), token => {
+    if (token.type === "html" && !isCommentSource(token.raw)) unsupported = "HTML";
+    if (token.type === "text" && /\[\^[^\]]+\]/.test(token.raw)) unsupported ??= "footnotes";
+    if (token.type === "link" && /^\[\^/.test(token.raw)) unsupported ??= "footnotes";
+    if (token.type === "def" && token.tag.startsWith("^")) unsupported ??= "footnotes";
+  });
+  return unsupported;
 }

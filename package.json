@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "bun test scripts",
+    "test:browser": "bun scripts/comments-browser.ts",
     "dev": "vite",
     "build": "vite build",
     "tauri": "tauri"
@@ -16,12 +17,14 @@
     "@tiptap/extension-table": "^3.20.0",
     "@tiptap/markdown": "^3.19.0",
     "@tiptap/pm": "^3.19.0",
-    "@tiptap/starter-kit": "^3.19.0"
+    "@tiptap/starter-kit": "^3.19.0",
+    "marked": "^17.0.6"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "@types/jsdom": "^30.0.0",
     "jsdom": "^31.0.1",
+    "playwright": "1.62.1",
     "typescript": "^5",
     "vite": "^6"
   }
