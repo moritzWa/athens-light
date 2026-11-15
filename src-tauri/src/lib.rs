@@ -48,6 +48,48 @@ fn publish_document_url(window: &WebviewWindow, path: &std::path::Path) {
     let _ = (window, path);
 }
 
+// Use AppKit's persistent frame storage so positions remain in macOS screen
+// coordinates and AppKit can handle a display disappearing between launches.
+fn restore_document_frame(window: &WebviewWindow) {
+    #[cfg(target_os = "macos")]
+    {
+        let window = window.clone();
+        let dispatcher = window.clone();
+        let _ = dispatcher.run_on_main_thread(move || {
+            if let Ok(native) = window.ns_window() {
+                // Tauri owns this NSWindow; this closure runs on the main thread.
+                let native = unsafe { &*native.cast::<objc2_app_kit::NSWindow>() };
+                let name = objc2_foundation::NSString::from_str("AthensLightDocument");
+                native.setFrameUsingName_force(&name, true);
+            }
+
+            // Register after restoration, otherwise the initial default frame
+            // could overwrite the saved one. Only document windows use this key.
+            let observed = window.clone();
+            window.on_window_event(move |event| {
+                if matches!(
+                    event,
+                    tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_)
+                ) {
+                    let window = observed.clone();
+                    let dispatcher = window.clone();
+                    let _ = dispatcher.run_on_main_thread(move || {
+                        if let Ok(native) = window.ns_window() {
+                            // Same lifetime and main-thread guarantees as above.
+                            let native = unsafe { &*native.cast::<objc2_app_kit::NSWindow>() };
+                            let name = objc2_foundation::NSString::from_str("AthensLightDocument");
+                            native.saveFrameUsingName(&name);
+                        }
+                    });
+                }
+            });
+            let _ = window.show();
+        });
+    }
+    #[cfg(not(target_os = "macos"))]
+    let _ = window.show();
+}
+
 fn open_path(app: &AppHandle, path: PathBuf) {
     let path = match std::path::absolute(path) {
         Ok(path) => path,
@@ -82,12 +124,14 @@ fn open_path(app: &AppHandle, path: PathBuf) {
     let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title(title)
         .inner_size(820.0, 920.0)
+        .visible(false)
         .tabbing_identifier("athens-light")
         .title_bar_style(TitleBarStyle::Overlay)
         .hidden_title(true)
         .build();
     if let Ok(window) = window {
         publish_document_url(&window, &path);
+        restore_document_frame(&window);
     }
 
     if let Some(launcher) = app.get_webview_window("launcher") {
