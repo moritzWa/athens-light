@@ -1,6 +1,7 @@
 import { Editor } from "@tiptap/core";
 import { extensions } from "./extensions";
-import { splitFrontMatter, unsupportedSyntax } from "./frontmatter";
+import { splitFrontMatter } from "./frontmatter";
+import { loadMarkdown } from "./document";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import logo from "./athens-logo.svg";
@@ -58,6 +59,7 @@ async function main() {
   async function save() {
     window.clearTimeout(timer);
     timer = undefined;
+    if (!editor.isEditable) return;
     const md = serialize();
     if (md === synced) return;
     await invoke("write_file", { path, content: md });
@@ -74,14 +76,17 @@ async function main() {
   header.append(title);
   document.body.prepend(header);
 
-  const unsupported = unsupportedSyntax(body);
-  if (unsupported) {
-    editor.setEditable(false);
-    const badge = document.createElement("span");
-    badge.id = "badge";
-    badge.textContent = `Read-only: this file has ${unsupported}, which Athens Light can't save`;
-    header.append(badge);
+  function load() {
+    const unsupported = loadMarkdown(editor, body);
+    header.querySelector("#badge")?.remove();
+    if (unsupported) {
+      const badge = document.createElement("span");
+      badge.id = "badge";
+      badge.textContent = `Read-only: this file has ${unsupported}, which Athens Light can't save`;
+      header.append(badge);
+    }
   }
+  load();
 
   title.addEventListener("click", () => {
     const input = document.createElement("input");
@@ -128,7 +133,7 @@ async function main() {
     if (disk === lastDisk) return;
     lastDisk = disk;
     ({ front, body } = splitFrontMatter(disk));
-    editor.commands.setContent(body, { contentType: "markdown", emitUpdate: false });
+    load();
     synced = serialize();
   });
 
