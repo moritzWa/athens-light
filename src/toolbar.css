@@ -85,7 +85,6 @@
 .toolbar-error { margin: 8px 0 0; color: #b4690e; font-size: 12px; }
 .toolbar-error:empty { display: none; }
 .toolbar-file-button { margin-top: 8px; }
-.ProseMirror img { display: block; max-width: 100%; height: auto; }
 .ProseMirror table { table-layout: fixed; }
 .ProseMirror td, .ProseMirror th { overflow-wrap: anywhere; }
 .ProseMirror .selectedCell { background: color-mix(in srgb, var(--link) 12%, transparent); }

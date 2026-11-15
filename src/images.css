@@ -1,0 +1,29 @@
+.ProseMirror .document-image {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+.ProseMirror .document-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: none;
+}
+.image-selection-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+.document-image.ProseMirror-selectednode .image-selection-overlay,
+.document-image.image-in-selection .image-selection-overlay {
+  background: color-mix(in srgb, var(--link) 15%, transparent);
+  box-shadow: inset 0 0 0 2px var(--link);
+}

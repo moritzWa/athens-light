@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "bun test scripts",
-    "test:browser": "bun scripts/editor-browser.ts && bun scripts/footnotes-browser.ts",
+    "test:browser": "bun scripts/editor-browser.ts && bun scripts/footnotes-browser.ts && bun scripts/images-browser.ts",
     "dev": "vite",
     "build": "vite build",
     "tauri": "tauri"

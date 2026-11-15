@@ -16,6 +16,7 @@ const { loadMarkdown } = await import("../src/document");
 const { normalizeMarkdown, commentFocusKey } = await import("../src/comments");
 const { externalUrl, copyLink } = await import("../src/link-ui");
 const { localImagePath } = await import("../src/images");
+const { NodeSelection } = await import("@tiptap/pm/state");
 const editors: InstanceType<typeof Editor>[] = [];
 function open(content: string) {
   const element = document.createElement("div");
@@ -288,4 +289,25 @@ test("image filenames with spaces and parentheses serialize as valid Markdown", 
   const editor = open("Text.");
   editor.commands.setImage({ src: "assets/my photo (1).png", alt: "A [label]" });
   expect(editor.getMarkdown()).toContain("![A \\[label\\]](assets/my%20photo%20%281%29.png)");
+});
+
+test("whole-image and range selection never modify image Markdown or emit edits", () => {
+  const source = "Before.\n\n![A picture](assets/picture.png)\n\nAfter.";
+  const editor = open(plain);
+  loadMarkdown(editor, source);
+  let pos = 0;
+  editor.state.doc.descendants((node, index) => { if (node.type.name === "image") pos = index; });
+  let updates = 0;
+  editor.on("update", () => updates++);
+  editor.view.dispatch(editor.state.tr.setSelection(NodeSelection.create(editor.state.doc, pos)));
+  const image = editor.view.dom.querySelector(".document-image")!;
+  expect(image.classList.contains("ProseMirror-selectednode")).toBe(true);
+  expect(image.classList.contains("image-in-selection")).toBe(true);
+  expect(editor.schema.nodes.image?.spec.draggable).toBe(false);
+  editor.commands.setTextSelection({ from: 1, to: editor.state.doc.content.size - 1 });
+  expect(image.classList.contains("image-in-selection")).toBe(true);
+  editor.commands.setTextSelection(1);
+  expect(image.classList.contains("image-in-selection")).toBe(false);
+  expect(editor.getMarkdown()).toBe(source);
+  expect(updates).toBe(0);
 });
