@@ -116,7 +116,7 @@ export const DocumentImage = Image.extend({
         try {
           const local = path ? localImagePath(source, path) : null;
           const version = local ? reloads.get(editor)?.versions.get(local) : undefined;
-          const identity = JSON.stringify([path, source, version]);
+          const identity = JSON.stringify({ path, source, version });
           if (identity === previous) return;
           previous = identity;
           const url = local ? convertFileSrc(local) : source;
