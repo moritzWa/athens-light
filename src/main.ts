@@ -6,7 +6,7 @@ import { normalizeMarkdown as normalize } from "./comments";
 import { mountComments } from "./comment-ui";
 import { mountLinks } from "./link-ui";
 import { mountToolbar } from "./toolbar";
-import { setImageDocumentPath } from "./images";
+import { mountImageReload, setImageDocumentPath } from "./images";
 import { createPathCopiedToast } from "./toast";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -50,6 +50,8 @@ async function main() {
     },
   });
   setImageDocumentPath(editor, path);
+  const stopImageReload = mountImageReload(editor);
+  editor.on("destroy", stopImageReload);
 
   // What the editor produces for the untouched file. Saves only happen when
   // the content differs from this, so merely opening a file never rewrites it.

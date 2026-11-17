@@ -23,6 +23,7 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Footnotes show numbered references and editable notes collected at the end in first-reference order. Click a reference to jump to its note, or use Footnote in the toolbar to add one. Deleting the last reference removes the note; undo restores both. Named labels and multiline notes stay in standard Markdown. Unused definitions imported from a file stay in its source but are not shown as notes.
 - Insert tables with a row/column count. Inside a table, its toolbar menu adds or deletes rows and columns, or removes the table.
 - Insert images by URL, a path inside the document's folder, or local file. Chosen files are copied to an `assets` folder beside the document without overwriting existing images. Markdown keeps a relative path, not an app-specific URL.
+- Local raster images and SVGs refresh automatically when another app changes or replaces them, without reopening or editing the Markdown. Referenced files are checked once a second and when the window regains focus.
 - Select an image and choose Copy image in the contextual toolbar to copy the bitmap to the macOS clipboard.
 - Click a link to open it. Hover for a small destination preview with Copy and Edit actions.
 - Front matter, images, task lists and tables survive editing; files with other raw HTML open read-only
@@ -65,7 +66,7 @@ bunx tauri dev
 
 ## Tests
 
-Run regression tests with `bun test` and native image-import tests with `cargo test --lib` in `src-tauri`. `bun run test:browser` checks the toolbar and runs a separate footnote behavior suite in headless Chromium. Install browsers with `bunx playwright install chromium webkit`; run the same suites in WebKit with `BROWSER=webkit bun run test:browser`.
+Run regression tests with `bun test` and native image-import and file-version tests with `cargo test --lib` in `src-tauri`. `bun run test:browser` checks the toolbar, footnotes, image selection and external raster/SVG refresh in headless Chromium. Install browsers with `bunx playwright install chromium webkit`; run the same suites in WebKit with `BROWSER=webkit bun run test:browser`.
 
 After `bun run build:mac`, `bun run test:mac-signing` changes and re-signs a temporary bundle copy, then checks that it still satisfies the original build's designated requirement. This tests privacy-identity continuity without opening an app or accessing user documents.
 
