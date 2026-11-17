@@ -5,6 +5,55 @@ import { NodeSelection } from "@tiptap/pm/state";
 import "./images.css";
 
 const paths = new WeakMap<Editor, string>();
+const reloads = new WeakMap<Editor, { versions: Map<string, string | null>; listeners: Set<() => void> }>();
+
+// One bounded batch per document, not one timer per image. No document
+// transactions are needed, so refreshes cannot save Markdown or enter undo.
+export function mountImageReload(editor: Editor) {
+  const state = { versions: new Map<string, string | null>(), listeners: new Set<() => void>() };
+  reloads.set(editor, state);
+  let stopped = false;
+  let busy = false;
+  let timer: ReturnType<typeof setTimeout>;
+  const refresh = async () => {
+    if (stopped || busy) return;
+    busy = true;
+    const documentPath = paths.get(editor);
+    try {
+      const localPaths = new Set<string>();
+      editor.state.doc.descendants(node => {
+        if (node.type.name !== "image" || !documentPath) return;
+        try {
+          const local = localImagePath(String(node.attrs.src ?? ""), documentPath);
+          if (local) localPaths.add(local);
+        } catch { /* A malformed URL must not stop other images refreshing. */ }
+      });
+      const sources = [...localPaths];
+      if (sources.length) {
+        const versions = await invoke<(string | null)[]>("image_versions", { paths: sources });
+        if (stopped || paths.get(editor) !== documentPath) return;
+        sources.forEach((source, index) => state.versions.set(source, versions[index]));
+        for (const listener of state.listeners) listener();
+      }
+      for (const source of state.versions.keys()) if (!localPaths.has(source)) state.versions.delete(source);
+    } catch (error) {
+      console.warn("Could not check external images", error);
+    } finally {
+      busy = false;
+      if (!stopped) timer = setTimeout(refresh, 1000);
+    }
+  };
+  const focus = () => { clearTimeout(timer); void refresh(); };
+  window.addEventListener("focus", focus);
+  void refresh();
+  return () => {
+    stopped = true;
+    clearTimeout(timer);
+    window.removeEventListener("focus", focus);
+    state.listeners.clear();
+    reloads.delete(editor);
+  };
+}
 export async function copySelectedImage(editor: Editor) {
   const selection = editor.state.selection;
   if (!(selection instanceof NodeSelection) || selection.node.type.name !== "image") throw new Error("Select an image first");
@@ -64,21 +113,25 @@ export const DocumentImage = Image.extend({
         dom.classList.toggle("image-in-selection", typeof pos === "number" && selection.from <= pos && selection.to >= pos + node.nodeSize);
         const path = paths.get(editor);
         const source = node.attrs.src ?? "";
-        const identity = `${path}\n${source}`;
-        if (identity === previous) return;
-        previous = identity;
         try {
           const local = path ? localImagePath(source, path) : null;
-          image.src = local ? convertFileSrc(local) : source;
+          const version = local ? reloads.get(editor)?.versions.get(local) : undefined;
+          const identity = JSON.stringify({ path, source, version });
+          if (identity === previous) return;
+          previous = identity;
+          const url = local ? convertFileSrc(local) : source;
+          image.src = local && version !== undefined ? `${url}${url.includes("?") ? "&" : "?"}athensAsset=${encodeURIComponent(version ?? "missing")}` : url;
         } catch { image.removeAttribute("src"); }
       };
       update();
+      const listeners = reloads.get(editor)?.listeners;
+      listeners?.add(update);
       editor.on("transaction", update);
       return {
         dom,
         ignoreMutation: mutation => mutation.type !== "selection",
         stopEvent: event => ["pointerdown", "mousedown", "click", "dblclick", "dragstart"].includes(event.type),
-        destroy: () => { editor.off("transaction", update); dom.removeEventListener("pointerdown", select); },
+        destroy: () => { listeners?.delete(update); editor.off("transaction", update); dom.removeEventListener("pointerdown", select); },
       };
     };
   },

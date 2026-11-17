@@ -1,5 +1,6 @@
 mod images;
 mod image_clipboard;
+mod image_versions;
 
 use std::{
     collections::HashMap,
@@ -327,6 +328,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             initial_path,
             read_file,
+            image_versions::image_versions,
             write_file,
             pick_image,
             image_clipboard::copy_image_to_clipboard,
