@@ -60,7 +60,26 @@ export async function browserFixture(source: string, assetDirectory?: string) {
     const errors: string[] = [];
     page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
     await page.addInitScript(({ source, assetDirectory }) => {
-      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[], imageCopies: [] as string[], imageChecks: [] as string[][], failImageCopy: false };
+      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[], imageCopies: [] as string[], imageChecks: [] as string[][], failImageCopy: false, speech: [] as { text: string; language: string }[], speechError: "" };
+      // Silent audio with one mark per word, so reading runs without making any sound.
+      const silentSpeech = (text: string) => {
+        const marks: { start: number; end: number; start_time: number }[] = [];
+        let codePoint = 0, word = 0, from = -1;
+        for (const char of [...text, " "]) {
+          if (/\s/.test(char)) { if (from >= 0) marks.push({ start: from, end: codePoint, start_time: word++ * 120 }); from = -1; }
+          else if (from < 0) from = codePoint;
+          codePoint++;
+        }
+        const rate = 8000, samples = Math.max(1, Math.round(rate * 0.12 * word));
+        const bytes = new Uint8Array(44 + samples * 2), view = new DataView(bytes.buffer);
+        const tag = (offset: number, value: string) => [...value].forEach((char, index) => view.setUint8(offset + index, char.charCodeAt(0)));
+        tag(0, "RIFF"); view.setUint32(4, 36 + samples * 2, true); tag(8, "WAVEfmt "); view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true); view.setUint16(22, 1, true); view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true);
+        view.setUint16(32, 2, true); view.setUint16(34, 16, true); tag(36, "data"); view.setUint32(40, samples * 2, true);
+        let binary = "";
+        bytes.forEach(byte => { binary += String.fromCharCode(byte); });
+        return { audio: btoa(binary), marks };
+      };
       (window as any).__fixture = state;
       Object.defineProperty(navigator, "clipboard", { value: { writeText: async (text: string) => { state.copies.push(text); } } });
       (window as any).__TAURI_INTERNALS__ = {
@@ -77,6 +96,11 @@ export async function browserFixture(source: string, assetDirectory?: string) {
           if (command === "read_file") return state.disk;
           if (command === "write_file") { state.disk = args.content; state.writes.push(args.content); }
           if (command === "open_url") state.opens.push(args.url);
+          if (command === "speech_synthesize") {
+            state.speech.push({ text: args.text, language: args.language });
+            if (state.speechError) throw state.speechError;
+            return silentSpeech(args.text);
+          }
            if (command === "pick_image") return "assets/my photo.png";
            if (command === "copy_image_to_clipboard") {
              if (state.failImageCopy) throw new Error("Image unavailable");

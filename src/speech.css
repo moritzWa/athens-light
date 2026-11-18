@@ -1,0 +1,90 @@
+:root {
+  --speech-sentence: #e2e2ff;
+  --speech-word: #adadff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --speech-sentence: #30305a;
+    --speech-word: #55559a;
+  }
+}
+
+.ProseMirror .speech-sentence {
+  background: var(--speech-sentence);
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.ProseMirror .speech-word {
+  background: var(--speech-word);
+  border-radius: 3px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* The bar has 4px padding around 6px-radius buttons, so its own radius is 10px. */
+.speech-controls {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--code-bg);
+  color: var(--fg);
+  font: 12px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.speech-controls[hidden],
+.speech-controls [hidden] {
+  display: none;
+}
+
+.speech-controls button {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: 600 16px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  cursor: pointer;
+}
+
+.speech-controls button:hover {
+  background: var(--line);
+}
+
+.speech-controls svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.speech-rate {
+  min-width: 34px;
+  text-align: center;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.speech-message {
+  max-width: 320px;
+  padding: 0 8px;
+  line-height: 1.4;
+}

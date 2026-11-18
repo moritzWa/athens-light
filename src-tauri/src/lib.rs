@@ -1,6 +1,7 @@
 mod images;
 mod image_clipboard;
 mod image_versions;
+mod speech;
 
 use std::{
     collections::HashMap,
@@ -333,6 +334,7 @@ pub fn run() {
             pick_image,
             image_clipboard::copy_image_to_clipboard,
             open_url,
+            speech::speech_synthesize,
             rename_file,
             new_file,
             open_file

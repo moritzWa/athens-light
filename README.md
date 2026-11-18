@@ -26,6 +26,7 @@ Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). T
 - Local raster images and SVGs refresh automatically when another app changes or replaces them, without reopening or editing the Markdown. Referenced files are checked once a second and when the window regains focus.
 - Select an image and choose Copy image in the contextual toolbar to copy the bitmap to the macOS clipboard.
 - Click a link to open it. Hover for a small destination preview with Copy and Edit actions.
+- Cmd+S reads the document aloud with Speechify, highlighting the sentence and word being spoken. It reads the selection, or from the caret to the end. Press Cmd+S again to pause and resume, Escape to stop, Option+= and Option+- to change speed (remembered, default 1.7x). Option+click a word to read from it. Code blocks, footnote bodies, URLs and long IDs are skipped, and German sentences switch to a German voice. Audio is cached, so repeating a read costs nothing. Saving is automatic, so Cmd+S no longer needs to be pressed to save (it still flushes a pending save). Speech needs a Speechify API key in `SPEECHIFY_API_KEY`, `~/Library/Application Support/com.moritz.athenslight/speechify.key`, or `~/.local/share/opencode/speechify.key`; it is never stored in the repo.
 - Front matter, images, task lists and tables survive editing; files with other raw HTML open read-only
 - Light and dark mode follow the system
 - Remembers the last document window's position and size across launches

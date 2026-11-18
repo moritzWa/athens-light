@@ -7,6 +7,7 @@ import { ColumnWidthTableView } from "./table-view";
 import { HtmlComment, InlineHtmlComment, CommentFocus } from "./comments";
 import { FootnoteReference, FootnoteDefinition } from "./footnotes";
 import { FootnoteOrder, UnusedFootnote } from "./footnote-order";
+import { SpeechHighlight } from "./speech-highlight";
 
 export const extensions = [
   StarterKit.configure({ link: { openOnClick: false }, trailingNode: { notAfter: ["footnoteDefinition", "unusedFootnote"] } }),
@@ -18,6 +19,7 @@ export const extensions = [
   FootnoteDefinition,
   UnusedFootnote,
   FootnoteOrder,
+  SpeechHighlight,
   DocumentImage,
   TaskList,
   TaskItem.configure({ nested: true }),

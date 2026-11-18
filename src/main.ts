@@ -9,6 +9,8 @@ import { mountToolbar } from "./toolbar";
 import { mountTableControls } from "./table-ui";
 import { mountImageReload, setImageDocumentPath } from "./images";
 import { createPathCopiedToast } from "./toast";
+import { createReader, type Speech } from "./speech";
+import { mountSpeechControls } from "./speech-controls";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import logo from "./athens-logo.svg";
@@ -99,6 +101,9 @@ async function main() {
   editor.on("destroy", () => tableControls.destroy());
   const toolbar = mountToolbar(editor, { comment: comments.add, canComment: comments.canAdd, pickImage: () => invoke<string | null>("pick_image", { path }) });
   editor.on("destroy", () => toolbar.destroy());
+  const reader = createReader(editor, { synthesize: (text, language) => invoke<Speech>("speech_synthesize", { text, language }) });
+  const speechControls = mountSpeechControls(reader);
+  editor.on("destroy", () => { speechControls.destroy(); reader.destroy(); });
 
   title.addEventListener("click", () => {
     const input = document.createElement("input");
@@ -150,10 +155,14 @@ async function main() {
     synced = serialize();
   });
 
+  // Saving is automatic, so Cmd+S reads aloud; it still flushes a pending save.
   window.addEventListener("keydown", (e) => {
-    if (e.metaKey && e.key === "s") {
+    if (e.metaKey && !e.shiftKey && !e.altKey && !e.ctrlKey && e.key === "s") {
       e.preventDefault();
       save();
+      if (!e.repeat) reader.toggle();
+    } else if (reader.handleKey(e)) {
+      e.preventDefault();
     }
   });
 
