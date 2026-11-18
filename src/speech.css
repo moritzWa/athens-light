@@ -1,27 +1,31 @@
+/* Same marks as the Understand app's reader: indigo-100 and indigo-300, indigo-400 at 20% and 60% in dark. */
 :root {
-  --speech-sentence: #e2e2ff;
-  --speech-word: #adadff;
+  --speech-sentence: #e0e7ff;
+  --speech-word: #a5b4fc;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --speech-sentence: #30305a;
-    --speech-word: #55559a;
+    --speech-sentence: rgb(129 140 248 / 0.2);
+    --speech-word: rgb(129 140 248 / 0.6);
   }
+}
+
+/* No side padding: ProseMirror splits a mark at every link or bold run, and a later
+   piece's padding would paint over the end of the text before it. */
+.ProseMirror .speech-sentence,
+.ProseMirror .speech-word {
+  border-radius: 6px;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
 }
 
 .ProseMirror .speech-sentence {
   background: var(--speech-sentence);
-  border-radius: 3px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
 }
 
 .ProseMirror .speech-word {
   background: var(--speech-word);
-  border-radius: 3px;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
 }
 
 /* The bar has 4px padding around 6px-radius buttons, so its own radius is 10px. */
