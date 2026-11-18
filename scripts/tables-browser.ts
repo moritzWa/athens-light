@@ -110,6 +110,20 @@ try {
   assert(await page.getByRole("menuitem", { name: "Move row down", exact: true }).isDisabled(), "header row can move down");
   await page.keyboard.press("Escape");
 
+  // Deleting a column must leave a caret, not a selection over the whole table.
+  await table.locator("th").nth(1).hover();
+  await frames();
+  await page.getByRole("button", { name: "Column options" }).click();
+  await page.evaluate(() => { const range = document.createRange(); range.selectNodeContents(document.querySelector(".ProseMirror table")!); getSelection()!.removeAllRanges(); getSelection()!.addRange(range); });
+  await page.getByRole("menuitem", { name: "Delete column", exact: true }).click();
+  await frames();
+  const afterDelete = await page.evaluate(() => ({ native: getSelection()!.toString(), collapsed: getSelection()!.isCollapsed, cells: document.querySelectorAll(".selectedCell").length, type: (document.querySelector(".ProseMirror") as any).editor.state.selection.constructor.name }));
+  assert.deepEqual(afterDelete, { native: "", collapsed: true, cells: 0, type: "TextSelection" }, "deleting a column left the table selected");
+  await table.locator("th").first().hover();
+  await frames();
+  await page.getByRole("button", { name: "Column options" }).click();
+  await page.getByRole("menuitem", { name: "Insert column right", exact: true }).click();
+
   await table.locator("th").first().hover();
   await frames();
   await page.getByRole("button", { name: "Column options" }).click();

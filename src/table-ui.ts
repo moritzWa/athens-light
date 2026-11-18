@@ -107,14 +107,28 @@ export function mountTableControls(editor: Editor) {
     if (!(selection instanceof CellSelection)) return;
     try { editor.view.dispatch(editor.state.tr.setSelection(TextSelection.near(editor.state.doc.resolve(selection.$anchorCell.pos + 1)))); } catch { /* The anchor cell was deleted. */ }
   }
+  // A column or row selection leaves a real DOM range over its cells. When those
+  // cells are deleted the browser stretches that range across the whole table, and
+  // the editor does not overwrite it unless it owns focus.
+  function syncNativeSelection() {
+    const native = window.getSelection();
+    const selection = editor.state.selection;
+    if (!native || native.isCollapsed || !selection.empty || !selection.$from.parent.inlineContent) return;
+    const { node, offset } = editor.view.domAtPos(selection.from);
+    native.collapse(node, offset);
+  }
   function run(action: () => unknown) {
     if (!editor.isEditable) return;
     closeMenu();
+    window.getSelection()?.removeAllRanges();
+    editor.view.focus();
     editor.view.dispatch(closeHistory(editor.state.tr));
     action();
     collapse();
     editor.view.dispatch(closeHistory(editor.state.tr));
     editor.view.focus();
+    syncNativeSelection();
+    window.requestAnimationFrame(syncNativeSelection);
     schedule();
   }
   function selectCell(cell: HTMLTableCellElement) {
