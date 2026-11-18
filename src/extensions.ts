@@ -3,6 +3,7 @@ import { Markdown } from "@tiptap/markdown";
 import { DocumentImage } from "./images";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 import { Table, TableRow, TableHeader, TableCell } from "@tiptap/extension-table";
+import { ColumnWidthTableView } from "./table-view";
 import { HtmlComment, InlineHtmlComment, CommentFocus } from "./comments";
 import { FootnoteReference, FootnoteDefinition } from "./footnotes";
 import { FootnoteOrder, UnusedFootnote } from "./footnote-order";
@@ -20,7 +21,7 @@ export const extensions = [
   DocumentImage,
   TaskList,
   TaskItem.configure({ nested: true }),
-  Table,
+  Table.configure({ resizable: true, View: ColumnWidthTableView }),
   TableRow,
   TableHeader,
   TableCell,

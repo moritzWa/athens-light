@@ -83,6 +83,12 @@
 .toolbar-error { margin: 8px 0 0; color: #b4690e; font-size: 12px; }
 .toolbar-error:empty { display: none; }
 .toolbar-file-button { margin-top: 8px; }
+.ProseMirror .tableWrapper { margin: 0 0 1em; overflow-x: auto; overflow-y: hidden; }
+.ProseMirror .tableWrapper table { margin: 0; }
 .ProseMirror table { table-layout: fixed; }
+.ProseMirror td, .ProseMirror th { position: relative; }
+.ProseMirror .column-resize-handle { position: absolute; top: 0; right: -2px; bottom: 0; width: 4px; background: var(--link); pointer-events: none; }
+.ProseMirror td:last-child .column-resize-handle, .ProseMirror th:last-child .column-resize-handle { right: 0; }
+.ProseMirror.resize-cursor { cursor: col-resize; }
 .ProseMirror td, .ProseMirror th { overflow-wrap: anywhere; }
 .ProseMirror .selectedCell { background: color-mix(in srgb, var(--link) 12%, transparent); }

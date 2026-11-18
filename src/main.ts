@@ -6,6 +6,7 @@ import { normalizeMarkdown as normalize } from "./comments";
 import { mountComments } from "./comment-ui";
 import { mountLinks } from "./link-ui";
 import { mountToolbar } from "./toolbar";
+import { mountTableControls } from "./table-ui";
 import { mountImageReload, setImageDocumentPath } from "./images";
 import { createPathCopiedToast } from "./toast";
 import { invoke } from "@tauri-apps/api/core";
@@ -94,6 +95,8 @@ async function main() {
   editor.on("destroy", () => comments.destroy());
   const links = mountLinks(editor, url => invoke("open_url", { url }));
   editor.on("destroy", () => links.destroy());
+  const tableControls = mountTableControls(editor);
+  editor.on("destroy", () => tableControls.destroy());
   const toolbar = mountToolbar(editor, { comment: comments.add, canComment: comments.canAdd, pickImage: () => invoke<string | null>("pick_image", { path }) });
   editor.on("destroy", () => toolbar.destroy());
 

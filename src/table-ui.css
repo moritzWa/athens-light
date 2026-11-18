@@ -1,0 +1,25 @@
+.table-controls { position: fixed; inset: 0; z-index: 22; pointer-events: none; }
+.table-controls[hidden], .table-controls [hidden] { display: none; }
+.table-controls button { position: fixed; box-sizing: border-box; padding: 0; border: none; cursor: pointer; pointer-events: auto; font: 13px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
+.table-grip { border-radius: 4px; background: var(--line); }
+.table-grip:hover, .table-grip.open { background: var(--link); }
+.table-grip:focus-visible, .table-add:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
+.table-add { display: flex; align-items: center; justify-content: center; border-radius: 4px; background: transparent; color: var(--muted); opacity: 0.55; }
+.table-add:hover, .table-add:focus-visible { background: var(--code-bg); color: var(--fg); opacity: 1; }
+.table-menu {
+  position: fixed;
+  box-sizing: border-box;
+  min-width: 190px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 6px 24px #00000018;
+  pointer-events: auto;
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+.table-controls .table-menu-item { position: static; display: block; width: 100%; padding: 7px 9px; border-radius: 6px; background: transparent; color: var(--fg); font: inherit; text-align: left; white-space: nowrap; }
+.table-menu-item:hover, .table-menu-item:focus-visible { background: var(--code-bg); outline: none; }
+.table-menu-item:disabled { opacity: 0.35; cursor: default; }
+.table-menu-item:disabled:hover { background: transparent; }
