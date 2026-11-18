@@ -25,7 +25,8 @@ try {
   await page.getByRole("button", { name: "Row options" }).waitFor();
   const cell = (await table.locator("td").first().boundingBox())!;
   const grip = (await page.getByRole("button", { name: "Column options" }).boundingBox())!;
-  assert(Math.abs(grip.x - cell.x) < 2 && Math.abs(grip.width - cell.width) < 2, "column grip is not aligned with its column");
+  assert(Math.abs(grip.x + grip.width / 2 - (cell.x + cell.width / 2)) < 2, "column grip is not centered on its column");
+  assert(grip.width >= 24 && grip.height >= 14, "column grip hit area is too small");
   assert(grip.y + grip.height <= (await table.boundingBox())!.y, "column grip overlaps the table");
 
   await page.getByRole("button", { name: "Add column" }).click();
@@ -66,6 +67,46 @@ try {
   await page.getByRole("menuitem", { name: "Delete row", exact: true }).click();
   assert.equal(await table.locator("tr").count(), 4);
   assert.equal(await table.locator("th").count(), 4, "deleting a body row changed the header");
+
+  // Move, align and clear from the column menu.
+  const headers = () => table.locator("tr").first().locator("th").allTextContents();
+  const before3 = await headers();
+  await table.locator("th").nth(1).hover();
+  await frames();
+  await page.getByRole("button", { name: "Column options" }).click();
+  await page.getByRole("menuitem", { name: "Move column left", exact: true }).click();
+  const moved = await headers();
+  assert.equal(moved[0], before3[1], "column did not move left");
+  assert.equal(moved[1], before3[0]);
+  await table.locator("th").first().hover();
+  await frames();
+  await page.getByRole("button", { name: "Column options" }).click();
+  assert(await page.getByRole("menuitem", { name: "Move column left", exact: true }).isDisabled(), "first column can move left");
+  await page.getByRole("menuitem", { name: "Align center", exact: true }).click();
+  await page.waitForFunction(() => /\| :-+:\s+\|/.test((window as any).__fixture.disk), undefined, { timeout: 5000 });
+  await table.locator("th").first().hover();
+  await frames();
+  await page.getByRole("button", { name: "Column options" }).click();
+  await page.getByRole("menuitem", { name: "Clear contents", exact: true }).click();
+  assert.equal((await headers())[0], "");
+  const rowText = (index: number) => table.locator("tr").nth(index).locator("td").nth(1).textContent();
+  const [second, third] = [await rowText(1), await rowText(2)];
+  await table.locator("tr").nth(2).locator("td").first().hover();
+  await frames();
+  await page.getByRole("button", { name: "Row options" }).click();
+  await page.getByRole("menuitem", { name: "Move row up", exact: true }).click();
+  assert.equal(await rowText(1), third, "row did not move up");
+  assert.equal(await rowText(2), second);
+  await table.locator("tr").nth(1).locator("td").first().hover();
+  await frames();
+  await page.getByRole("button", { name: "Row options" }).click();
+  assert(await page.getByRole("menuitem", { name: "Move row up", exact: true }).isDisabled(), "first body row can swap with the header");
+  await page.keyboard.press("Escape");
+  await table.locator("th").first().hover();
+  await frames();
+  await page.getByRole("button", { name: "Row options" }).click();
+  assert(await page.getByRole("menuitem", { name: "Move row down", exact: true }).isDisabled(), "header row can move down");
+  await page.keyboard.press("Escape");
 
   await table.locator("th").first().hover();
   await frames();

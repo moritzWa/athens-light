@@ -1,8 +1,10 @@
 .table-controls { position: fixed; inset: 0; z-index: 22; pointer-events: none; }
 .table-controls[hidden], .table-controls [hidden] { display: none; }
 .table-controls button { position: fixed; box-sizing: border-box; padding: 0; border: none; cursor: pointer; pointer-events: auto; font: 13px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif; }
-.table-grip { border-radius: 4px; background: var(--line); }
-.table-grip:hover, .table-grip.open { background: var(--link); }
+.table-grip { display: flex; align-items: center; justify-content: center; border-radius: 5px; background: var(--bg); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line); }
+.table-grip svg { width: 14px; height: 14px; fill: currentColor; }
+.table-grip:hover, .table-grip:focus-visible { background: var(--code-bg); color: var(--fg); }
+.table-grip.open { background: var(--link); color: var(--bg); box-shadow: none; }
 .table-grip:focus-visible, .table-add:focus-visible { outline: 2px solid var(--link); outline-offset: 1px; }
 .table-add { display: flex; align-items: center; justify-content: center; border-radius: 4px; background: transparent; color: var(--muted); opacity: 0.55; }
 .table-add:hover, .table-add:focus-visible { background: var(--code-bg); color: var(--fg); opacity: 1; }
@@ -16,6 +18,8 @@
   background: var(--bg);
   color: var(--fg);
   box-shadow: 0 6px 24px #00000018;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
   pointer-events: auto;
   font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
 }
@@ -23,3 +27,4 @@
 .table-menu-item:hover, .table-menu-item:focus-visible { background: var(--code-bg); outline: none; }
 .table-menu-item:disabled { opacity: 0.35; cursor: default; }
 .table-menu-item:disabled:hover { background: transparent; }
+.table-menu-separator { height: 1px; margin: 4px 6px; background: var(--line); }

@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import { TextSelection, type Transaction } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
-import { CellSelection, TableMap } from "@tiptap/pm/tables";
+import { CellSelection, TableMap, deleteCellSelection, moveTableColumn, moveTableRow, selectedRect } from "@tiptap/pm/tables";
 import "./table-ui.css";
 
 type Kind = "column" | "row";
@@ -25,6 +25,8 @@ export function mountTableControls(editor: Editor) {
   const rowGrip = element("button", "table-grip table-grip-row", "Row options");
   const addColumn = element("button", "table-add table-add-column", "Add column");
   const addRow = element("button", "table-add table-add-row", "Add row");
+  columnGrip.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3.5" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="12.5" cy="8" r="1.4"/></svg>';
+  rowGrip.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="3.5" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="12.5" r="1.4"/></svg>';
   addColumn.textContent = "+";
   addRow.textContent = "+";
   const menu = element("div", "table-menu");
@@ -140,6 +142,27 @@ export function mountTableControls(editor: Editor) {
     button.addEventListener("click", () => run(action));
     menu.append(button);
   }
+  function separator() {
+    const line = element("div", "table-menu-separator");
+    line.setAttribute("role", "separator");
+    menu.append(line);
+  }
+  function move(kind: Kind, direction: -1 | 1) {
+    const rect = selectedRect(editor.state);
+    const from = kind === "column" ? rect.left : rect.top;
+    const to = from + direction;
+    const options = { from, to, select: false };
+    return editor.commands.command(({ state, dispatch }) => (kind === "column" ? moveTableColumn(options) : moveTableRow(options))(state, dispatch));
+  }
+  function canMove(kind: Kind, direction: -1 | 1) {
+    const rect = selectedRect(editor.state);
+    const index = kind === "column" ? rect.left : rect.top;
+    const size = kind === "column" ? rect.map.width : rect.map.height;
+    const target = index + direction;
+    // Row 0 is the Markdown header row, so nothing swaps with it.
+    const first = kind === "row" ? 1 : 0;
+    return index >= first && target >= first && target < size;
+  }
   function openMenu(kind: Kind, grip: HTMLElement) {
     if (!active || !editor.isEditable) return;
     const cell = active;
@@ -153,13 +176,28 @@ export function mountTableControls(editor: Editor) {
     if (kind === "column") {
       item("Insert column left", () => editor.commands.addColumnBefore(), editor.can().addColumnBefore());
       item("Insert column right", () => editor.commands.addColumnAfter(), editor.can().addColumnAfter());
+      separator();
+      item("Move column left", () => move("column", -1), canMove("column", -1));
+      item("Move column right", () => move("column", 1), canMove("column", 1));
+      separator();
+      item("Align left", () => editor.commands.setCellAttribute("align", null));
+      item("Align center", () => editor.commands.setCellAttribute("align", "center"));
+      item("Align right", () => editor.commands.setCellAttribute("align", "right"));
+      separator();
+      item("Clear contents", () => editor.commands.command(({ state, dispatch }) => deleteCellSelection(state, dispatch)));
+      if (hasCustomWidths(cell)) item("Reset column widths", () => resetWidths(cell));
       item("Delete column", () => editor.commands.deleteColumn(), editor.can().deleteColumn());
     } else {
       item("Insert row above", () => editor.commands.addRowBefore(), editor.can().addRowBefore() && !isHeaderRow(cell));
       item("Insert row below", () => editor.commands.addRowAfter(), editor.can().addRowAfter());
+      separator();
+      item("Move row up", () => move("row", -1), canMove("row", -1));
+      item("Move row down", () => move("row", 1), canMove("row", 1));
+      separator();
+      item("Clear contents", () => editor.commands.command(({ state, dispatch }) => deleteCellSelection(state, dispatch)));
       item("Delete row", () => editor.commands.deleteRow(), editor.can().deleteRow());
     }
-    if (hasCustomWidths(cell)) item("Reset column widths", () => resetWidths(cell));
+    separator();
     item("Delete table", () => editor.commands.deleteTable(), editor.can().deleteTable());
     menu.hidden = false;
     placeMenu(grip, kind);
@@ -215,10 +253,13 @@ export function mountTableControls(editor: Editor) {
     const left = Math.max(tableRect.left, wrapper.left), right = Math.min(tableRect.right, wrapper.right);
     const cellLeft = Math.max(cellRect.left, left), cellRight = Math.min(cellRect.right, right);
     const titlebar = 42;
-    columnGrip.hidden = cellRight <= cellLeft || tableRect.top - 14 < titlebar;
-    if (!columnGrip.hidden) place(columnGrip, cellLeft, tableRect.top - 14, cellRight - cellLeft, 10);
-    rowGrip.hidden = left - 14 < 0 || cellRect.bottom < titlebar;
-    if (!rowGrip.hidden) place(rowGrip, left - 14, Math.max(cellRect.top, titlebar), 10, cellRect.bottom - Math.max(cellRect.top, titlebar));
+    const gripLong = 28, gripShort = 16, gap = 4;
+    const centered = (start: number, end: number) => (start + end) / 2 - gripLong / 2;
+    columnGrip.hidden = cellRight <= cellLeft || tableRect.top - gap - gripShort < titlebar;
+    if (!columnGrip.hidden) place(columnGrip, Math.max(left, Math.min(centered(cellLeft, cellRight), right - gripLong)), tableRect.top - gap - gripShort, gripLong, gripShort);
+    const cellTop = Math.max(cellRect.top, titlebar), cellBottom = Math.min(cellRect.bottom, window.innerHeight);
+    rowGrip.hidden = left - gap - gripShort < 0 || cellBottom <= cellTop;
+    if (!rowGrip.hidden) place(rowGrip, left - gap - gripShort, Math.max(cellTop, Math.min(centered(cellTop, cellBottom), cellBottom - gripLong)), gripShort, gripLong);
     addColumn.hidden = right + 4 + 14 > window.innerWidth || tableRect.bottom < titlebar;
     if (!addColumn.hidden) place(addColumn, right + 4, Math.max(tableRect.top, titlebar), 14, tableRect.bottom - Math.max(tableRect.top, titlebar));
     addRow.hidden = tableRect.bottom + 3 + 14 > window.innerHeight;
