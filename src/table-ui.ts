@@ -7,6 +7,27 @@ import "./table-ui.css";
 type Kind = "column" | "row";
 const CELLS = "td, th";
 
+const icon = (paths: string) => `<svg viewBox="0 0 20 20" aria-hidden="true">${paths}</svg>`;
+const arrows = { left: "M16 10H4m5-5-5 5 5 5", right: "M4 10h12m-5-5 5 5-5 5", up: "M10 16V4M5 9l5-5 5 5", down: "M10 4v12m-5-5 5 5 5-5" };
+const menuIcons: Record<string, string> = {
+  "Insert column left": icon('<rect x="9" y="3" width="8" height="14" rx="1.5"/><path d="M5 7v6M2 10h6"/>'),
+  "Insert column right": icon('<rect x="3" y="3" width="8" height="14" rx="1.5"/><path d="M15 7v6M12 10h6"/>'),
+  "Insert row above": icon('<rect x="3" y="9" width="14" height="8" rx="1.5"/><path d="M7 5h6M10 2v6"/>'),
+  "Insert row below": icon('<rect x="3" y="3" width="14" height="8" rx="1.5"/><path d="M7 15h6M10 12v6"/>'),
+  "Move column left": icon(`<path d="${arrows.left}"/>`),
+  "Move column right": icon(`<path d="${arrows.right}"/>`),
+  "Move row up": icon(`<path d="${arrows.up}"/>`),
+  "Move row down": icon(`<path d="${arrows.down}"/>`),
+  "Align left": icon('<path d="M3 5h14M3 9h9M3 13h14M3 17h9"/>'),
+  "Align center": icon('<path d="M3 5h14M6 9h8M3 13h14M6 17h8"/>'),
+  "Align right": icon('<path d="M3 5h14M8 9h9M3 13h14M8 17h9"/>'),
+  "Clear contents": icon('<path d="m12.5 3.5 4 4L9 15H5.5l-2-2 9-9.5ZM7 10l4 4M10 15h7"/>'),
+  "Reset column widths": icon('<path d="M3 10h14M6 7l-3 3 3 3M14 7l3 3-3 3"/>'),
+  "Delete column": icon('<path d="M4 6h12M8 6V4h4v2M5.5 6l.7 10h7.6l.7-10M8.5 9v4M11.5 9v4"/>'),
+  "Delete row": icon('<path d="M4 6h12M8 6V4h4v2M5.5 6l.7 10h7.6l.7-10M8.5 9v4M11.5 9v4"/>'),
+  "Delete table": icon('<path d="M4 6h12M8 6V4h4v2M5.5 6l.7 10h7.6l.7-10M8.5 9v4M11.5 9v4"/>'),
+};
+
 function element<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, label?: string) {
   const node = document.createElement(tag);
   node.className = className;
@@ -136,7 +157,8 @@ export function mountTableControls(editor: Editor) {
 
   function item(label: string, action: () => unknown, enabled = true) {
     const button = element("button", "table-menu-item");
-    button.textContent = label;
+    button.innerHTML = menuIcons[label] ?? "";
+    button.append(label);
     button.setAttribute("role", "menuitem");
     button.disabled = !enabled;
     button.addEventListener("click", () => run(action));
@@ -253,13 +275,12 @@ export function mountTableControls(editor: Editor) {
     const left = Math.max(tableRect.left, wrapper.left), right = Math.min(tableRect.right, wrapper.right);
     const cellLeft = Math.max(cellRect.left, left), cellRight = Math.min(cellRect.right, right);
     const titlebar = 42;
-    const gripLong = 28, gripShort = 16, gap = 4;
-    const centered = (start: number, end: number) => (start + end) / 2 - gripLong / 2;
-    columnGrip.hidden = cellRight <= cellLeft || tableRect.top - gap - gripShort < titlebar;
-    if (!columnGrip.hidden) place(columnGrip, Math.max(left, Math.min(centered(cellLeft, cellRight), right - gripLong)), tableRect.top - gap - gripShort, gripLong, gripShort);
+    const gripThickness = 16, gap = 4;
+    columnGrip.hidden = cellRight <= cellLeft || tableRect.top - gap - gripThickness < titlebar;
+    if (!columnGrip.hidden) place(columnGrip, cellLeft, tableRect.top - gap - gripThickness, cellRight - cellLeft, gripThickness);
     const cellTop = Math.max(cellRect.top, titlebar), cellBottom = Math.min(cellRect.bottom, window.innerHeight);
-    rowGrip.hidden = left - gap - gripShort < 0 || cellBottom <= cellTop;
-    if (!rowGrip.hidden) place(rowGrip, left - gap - gripShort, Math.max(cellTop, Math.min(centered(cellTop, cellBottom), cellBottom - gripLong)), gripShort, gripLong);
+    rowGrip.hidden = left - gap - gripThickness < 0 || cellBottom <= cellTop;
+    if (!rowGrip.hidden) place(rowGrip, left - gap - gripThickness, cellTop, gripThickness, cellBottom - cellTop);
     addColumn.hidden = right + 4 + 14 > window.innerWidth || tableRect.bottom < titlebar;
     if (!addColumn.hidden) place(addColumn, right + 4, Math.max(tableRect.top, titlebar), 14, tableRect.bottom - Math.max(tableRect.top, titlebar));
     addRow.hidden = tableRect.bottom + 3 + 14 > window.innerHeight;

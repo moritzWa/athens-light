@@ -25,8 +25,8 @@ try {
   await page.getByRole("button", { name: "Row options" }).waitFor();
   const cell = (await table.locator("td").first().boundingBox())!;
   const grip = (await page.getByRole("button", { name: "Column options" }).boundingBox())!;
-  assert(Math.abs(grip.x + grip.width / 2 - (cell.x + cell.width / 2)) < 2, "column grip is not centered on its column");
-  assert(grip.width >= 24 && grip.height >= 14, "column grip hit area is too small");
+  assert(Math.abs(grip.x - cell.x) < 2 && Math.abs(grip.width - cell.width) < 2, "column grip does not span its column");
+  assert(grip.height >= 14, "column grip hit area is too small");
   assert(grip.y + grip.height <= (await table.boundingBox())!.y, "column grip overlaps the table");
 
   await page.getByRole("button", { name: "Add column" }).click();
@@ -43,6 +43,8 @@ try {
   await frames();
   await page.getByRole("button", { name: "Column options" }).click();
   assert.equal(await page.locator(".table-menu").getAttribute("aria-label"), "Column options");
+  const menuItems = await page.locator(".table-menu-item").count();
+  assert(menuItems > 0 && await page.locator(".table-menu-item svg").count() === menuItems, "menu items are missing icons");
   assert.equal(await page.locator(".ProseMirror .selectedCell").count(), 4, "column grip did not select the column");
   await page.getByRole("menuitem", { name: "Insert column left", exact: true }).click();
   assert.equal(await table.locator("tr").first().locator("th").count(), 4);

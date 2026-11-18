@@ -23,7 +23,8 @@
   pointer-events: auto;
   font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
 }
-.table-controls .table-menu-item { position: static; display: block; width: 100%; padding: 7px 9px; border-radius: 6px; background: transparent; color: var(--fg); font: inherit; text-align: left; white-space: nowrap; }
+.table-controls .table-menu-item { position: static; display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 9px; border-radius: 6px; background: transparent; color: var(--fg); font: inherit; text-align: left; white-space: nowrap; }
+.table-menu-item svg { flex: none; width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; color: var(--muted); }
 .table-menu-item:hover, .table-menu-item:focus-visible { background: var(--code-bg); outline: none; }
 .table-menu-item:disabled { opacity: 0.35; cursor: default; }
 .table-menu-item:disabled:hover { background: transparent; }
