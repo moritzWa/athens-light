@@ -18,15 +18,33 @@ import "./style.css";
 
 const SAVE_DELAY_MS = 400;
 
-function renderLauncher() {
+type RecentFile = { path: string; name: string; dir: string };
+
+async function renderLauncher() {
   document.body.classList.add("launcher");
+  const recent = await invoke<RecentFile[]>("recent_files");
   document.getElementById("editor")!.innerHTML = `
     <img class="logo" src="${logo}" alt="" />
     <button id="new">New Markdown File…</button>
     <button id="open">Open File…</button>
+    ${recent.length ? `<div class="recent-title">Recent</div><ul class="recent"></ul>` : ""}
   `;
   document.getElementById("new")!.onclick = () => invoke("new_file");
   document.getElementById("open")!.onclick = () => invoke("open_file");
+  const list = document.querySelector<HTMLUListElement>("ul.recent");
+  for (const file of recent) {
+    const item = document.createElement("li");
+    const name = document.createElement("span");
+    name.className = "recent-name";
+    name.textContent = file.name;
+    const dir = document.createElement("span");
+    dir.className = "recent-dir";
+    dir.textContent = file.dir;
+    item.title = file.path;
+    item.append(name, dir);
+    item.onclick = () => invoke("open_recent", { path: file.path });
+    list?.append(item);
+  }
 }
 
 const baseName = (p: string) => p.split("/").pop()!;

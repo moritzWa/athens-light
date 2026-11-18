@@ -1,6 +1,7 @@
 mod images;
 mod image_clipboard;
 mod image_versions;
+mod session;
 mod speech;
 
 use std::{
@@ -8,7 +9,7 @@ use std::{
     fs,
     path::PathBuf,
     sync::{
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicUsize, Ordering},
         Mutex,
     },
     thread,
@@ -18,11 +19,15 @@ use std::{
 use tauri::{
     menu::{Menu, MenuItem, MenuItemKind},
     AppHandle, Emitter, Manager, RunEvent, TitleBarStyle, WebviewUrl, WebviewWindow,
-    WebviewWindowBuilder,
+    WebviewWindowBuilder, WindowEvent,
 };
+use session::{RecentFile, Session};
 use tauri_plugin_dialog::DialogExt;
 
 static NEXT_WINDOW: AtomicUsize = AtomicUsize::new(0);
+static EXITING: AtomicBool = AtomicBool::new(false);
+
+const LAUNCHER_RECENT: usize = 6;
 
 #[derive(Default)]
 struct OpenFiles(Mutex<HashMap<String, String>>);
@@ -118,18 +123,25 @@ fn open_path(app: &AppHandle, path: PathBuf) {
         .find(|(_, p)| **p == path_str)
         .map(|(label, _)| label.clone());
     if let Some(window) = existing.and_then(|label| app.get_webview_window(&label)) {
+        app.state::<Session>().document_opened(&path_str);
         let _ = window.set_focus();
         return;
     }
 
     let label = format!("doc-{}", NEXT_WINDOW.fetch_add(1, Ordering::SeqCst));
-    files.0.lock().unwrap().insert(label.clone(), path_str);
+    files
+        .0
+        .lock()
+        .unwrap()
+        .insert(label.clone(), path_str.clone());
+    app.state::<Session>().document_opened(&path_str);
 
     let title = path
         .file_name()
         .map(|n| n.to_string_lossy().to_string())
         .unwrap_or_else(|| "Athens Light".into());
 
+    let closed_label = label.clone();
     let window = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
         .title(title)
         .inner_size(820.0, 920.0)
@@ -141,10 +153,43 @@ fn open_path(app: &AppHandle, path: PathBuf) {
     if let Ok(window) = window {
         publish_document_url(&window, &path);
         restore_document_frame(&window);
+        let handle = app.clone();
+        window.on_window_event(move |event| {
+            if matches!(event, WindowEvent::Destroyed) {
+                document_window_destroyed(&handle, &closed_label);
+            }
+        });
     }
 
     if let Some(launcher) = app.get_webview_window("launcher") {
         let _ = launcher.close();
+    }
+}
+
+// The window that closes last stays in the saved session, so the next launch
+// reopens it. Earlier closes drop out. Quitting never goes through here.
+fn document_window_destroyed(app: &AppHandle, label: &str) {
+    let files = app.state::<OpenFiles>();
+    let (path, others_remain) = {
+        let mut open = files.0.lock().unwrap();
+        let path = open.remove(label);
+        (path, !open.is_empty())
+    };
+    if let Some(path) = path {
+        if others_remain && !EXITING.load(Ordering::SeqCst) {
+            app.state::<Session>().document_closed(&path);
+        }
+    }
+}
+
+fn restore_session(app: &AppHandle) {
+    let session = app.state::<Session>();
+    for path in session.open_documents() {
+        if std::path::Path::new(&path).is_file() {
+            open_path(app, PathBuf::from(path));
+        } else {
+            session.forget(&path);
+        }
     }
 }
 
@@ -153,9 +198,11 @@ fn show_launcher(app: &AppHandle) {
         let _ = window.set_focus();
         return;
     }
+    let recent = app.state::<Session>().recent_files(LAUNCHER_RECENT).len() as f64;
+    let height = if recent > 0.0 { 340.0 + recent * 44.0 } else { 300.0 };
     let _ = WebviewWindowBuilder::new(app, "launcher", WebviewUrl::App("index.html".into()))
         .title("Athens Light")
-        .inner_size(420.0, 300.0)
+        .inner_size(420.0, height)
         .resizable(false)
         .build();
 }
@@ -202,6 +249,16 @@ fn open_file(app: AppHandle) {
 }
 
 #[tauri::command]
+fn recent_files(session: tauri::State<Session>) -> Vec<RecentFile> {
+    session.recent_files(LAUNCHER_RECENT)
+}
+
+#[tauri::command]
+fn open_recent(app: AppHandle, path: String) {
+    open_path(&app, PathBuf::from(path));
+}
+
+#[tauri::command]
 fn initial_path(window: WebviewWindow, files: tauri::State<OpenFiles>) -> Option<String> {
     files.0.lock().unwrap().get(window.label()).cloned()
 }
@@ -212,8 +269,14 @@ fn read_file(path: String) -> Result<String, String> {
 }
 
 #[tauri::command]
-fn write_file(path: String, content: String) -> Result<(), String> {
-    fs::write(path, content).map_err(|e| e.to_string())
+fn write_file(
+    session: tauri::State<Session>,
+    path: String,
+    content: String,
+) -> Result<(), String> {
+    fs::write(&path, content).map_err(|e| e.to_string())?;
+    session.document_edited(&path);
+    Ok(())
 }
 
 #[tauri::command]
@@ -242,6 +305,7 @@ async fn pick_image(
 fn rename_file(
     window: WebviewWindow,
     files: tauri::State<OpenFiles>,
+    session: tauri::State<Session>,
     path: String,
     new_name: String,
 ) -> Result<String, String> {
@@ -264,6 +328,7 @@ fn rename_file(
     fs::rename(&old, &target).map_err(|e| e.to_string())?;
 
     let new_path = target.to_string_lossy().to_string();
+    session.document_renamed(&path, &new_path);
     files
         .0
         .lock()
@@ -337,9 +402,14 @@ pub fn run() {
             speech::speech_synthesize,
             rename_file,
             new_file,
-            open_file
+            open_file,
+            recent_files,
+            open_recent
         ])
         .setup(|app| {
+            app.manage(Session::load(
+                app.path().app_data_dir()?.join("session.json"),
+            ));
             let menu = Menu::default(app.handle())?;
             let new = MenuItem::with_id(app, "new", "New…", true, Some("CmdOrCtrl+N"))?;
             let open = MenuItem::with_id(app, "open", "Open…", true, Some("CmdOrCtrl+O"))?;
@@ -373,6 +443,7 @@ pub fn run() {
 
     app.run(|app, event| match event {
         RunEvent::Ready => {
+            restore_session(app);
             // A double-clicked file arrives as an Opened event shortly after Ready.
             let handle = app.clone();
             thread::spawn(move || {
@@ -386,6 +457,9 @@ pub fn run() {
                     });
                 }
             });
+        }
+        RunEvent::ExitRequested { .. } | RunEvent::Exit => {
+            EXITING.store(true, Ordering::SeqCst);
         }
         RunEvent::Opened { urls } => {
             for url in urls {
