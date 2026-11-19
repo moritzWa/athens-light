@@ -2,7 +2,8 @@ name: Build and publish
 
 # Every push to main builds a signed app and replaces the files on the rolling
 # "latest" release. The download links never change:
-#   https://github.com/moritzWa/athens-light/releases/download/latest/Athens-Light-arm64.zip
+#   https://github.com/moritzWa/athens-light/releases/download/latest/Athens-Light-arm64.dmg
+#   https://github.com/moritzWa/athens-light/releases/download/latest/Athens-Light-arm64.zip (used by install.sh)
 #   https://athens-light.app/install.sh
 
 on:
@@ -74,9 +75,26 @@ jobs:
 
       - name: Package
         run: |
-          mkdir -p out
-          ditto -c -k --keepParent "src-tauri/target/release/bundle/macos/Athens Light.app" out/Athens-Light-arm64.zip
-          (cd out && shasum -a 256 Athens-Light-arm64.zip > Athens-Light-arm64.zip.sha256)
+          APP="src-tauri/target/release/bundle/macos/Athens Light.app"
+          mkdir -p out stage
+          ditto -c -k --keepParent "$APP" out/Athens-Light-arm64.zip
+          ditto "$APP" "stage/Athens Light.app"
+          brew install create-dmg
+          create-dmg --volname "Athens Light" \
+            --background scripts/dmg/background.tiff \
+            --window-pos 200 120 --window-size 660 400 --icon-size 128 \
+            --icon "Athens Light.app" 180 190 --hide-extension "Athens Light.app" \
+            --app-drop-link 480 190 \
+            out/Athens-Light-arm64.dmg stage/
+          IDENTITY=$(jq -r .bundle.macOS.signingIdentity src-tauri/tauri.conf.json)
+          codesign --force --sign "$IDENTITY" --timestamp out/Athens-Light-arm64.dmg
+          if [ -n "$APPLE_ID" ] && [ -n "$APPLE_APP_SPECIFIC_PASSWORD" ] && [ -n "$APPLE_TEAM_ID" ]; then
+            xcrun notarytool submit out/Athens-Light-arm64.dmg \
+              --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+              --wait --timeout 30m
+            xcrun stapler staple out/Athens-Light-arm64.dmg
+          fi
+          (cd out && shasum -a 256 Athens-Light-arm64.zip Athens-Light-arm64.dmg > SHA256SUMS)
 
       - name: Publish to the latest release
         env:
@@ -89,10 +107,11 @@ jobs:
           NOTES="Build of ${VERSION} from commit ${SHORT}, updated on every push to main.
 
           Install: \`curl -fsSL https://athens-light.app/install.sh | sh\`
-          Or unzip and drag **Athens Light.app** to Applications."
+          Or open the .dmg and drag **Athens Light** to Applications."
           if gh release view latest >/dev/null 2>&1; then
             gh release edit latest --title "Athens Light (latest build)" --notes "$NOTES" --latest
           else
             gh release create latest --title "Athens Light (latest build)" --notes "$NOTES" --latest --verify-tag
           fi
-          gh release upload latest out/Athens-Light-arm64.zip out/Athens-Light-arm64.zip.sha256 --clobber
+          gh release upload latest out/Athens-Light-arm64.dmg out/Athens-Light-arm64.zip out/SHA256SUMS --clobber
+          gh release delete-asset latest Athens-Light-arm64.zip.sha256 -y 2>/dev/null || true
