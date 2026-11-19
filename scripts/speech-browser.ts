@@ -107,7 +107,27 @@ try {
   await waitWord("Third");
   assert((await calls()).at(-1)!.text.startsWith("Third paragraph"));
   assert.equal(await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.from), from, "Option+click moved the selection");
+
+  // Option+click entered reader mode, where a plain click reads from the word and leaves the caret alone.
+  assert.equal(await controls.isVisible(), true, "controls are visible in reader mode");
+  assert.equal(await page.evaluate(() => document.body.classList.contains("reader-mode")), true);
+  const alpha = await pointAt("Alpha");
+  await page.mouse.click(alpha.x, alpha.y);
+  await waitWord("Alpha");
+  assert((await calls()).at(-1)!.text.startsWith("Alpha"), "a plain click in reader mode did not read from the word");
+  assert.equal(await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.from), from, "a click in reader mode moved the caret");
+
+  // Escape leaves reader mode; then a click places the caret and reads nothing.
   await page.keyboard.press("Escape");
+  await controls.waitFor({ state: "hidden" });
+  assert.equal(await page.evaluate(() => document.body.classList.contains("reader-mode")), false);
+  const readsBefore = (await calls()).length;
+  const third = await pointAt("Third");
+  await page.mouse.click(third.x, third.y);
+  await page.waitForTimeout(300);
+  assert.notEqual(await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.from), from, "click did not place the caret after leaving reader mode");
+  assert.equal((await calls()).length, readsBefore, "a click outside reader mode started reading");
+  assert.equal(await controls.isHidden(), true);
 
   // Typing makes the script stale, so it stops reading instead of highlighting the wrong words.
   await page.keyboard.press("Meta+s");
@@ -132,11 +152,20 @@ try {
   await page.locator(".ProseMirror").click({ position: { x: 4, y: 4 } });
   await page.keyboard.press("Meta+s");
   await page.locator(".ProseMirror p").nth(7).locator(".speech-word").waitFor({ timeout: 30000 });
-  await controls.waitFor({ state: "hidden", timeout: 30000 });
+  // The reading ends, but reader mode stays on so a click can start another one.
+  await page.waitForFunction(() => document.querySelector(".speech-controls")?.getAttribute("data-state") === "ready", undefined, { timeout: 30000 });
+  assert.equal(await controls.isVisible(), true);
+  assert.equal(await page.evaluate(() => document.body.classList.contains("reader-mode")), true);
   const pieces = await calls();
   assert(pieces.length >= 2, "expected the long text to be split into pieces");
   assert.equal(pieces.map(piece => piece.text).join("").trim(), long.split("\n\n").join(" "), "pieces did not cover the text exactly");
   assert.equal(await word.count(), 0, "highlight remained after the reading ended");
+  const again = await pointAt("Paragraph 5");
+  await page.mouse.click(again.x, again.y);
+  await page.waitForFunction(() => document.querySelector(".speech-controls")?.getAttribute("data-state") !== "ready");
+  assert((await calls()).at(-1)!.text.startsWith("Paragraph 5"), "clicking after a reading ended did not start another");
+  await page.keyboard.press("Escape");
+  await controls.waitFor({ state: "hidden" });
   assert.deepEqual(errors, []);
   console.log("speech browser checks passed");
 } finally {

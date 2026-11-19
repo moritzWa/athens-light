@@ -9,11 +9,13 @@ export type Mark = { start: number; end: number; start_time: number };
 export type Speech = { audio: string; marks: Mark[] };
 export type Synthesize = (text: string, language: Language) => Promise<Speech>;
 
-export type ReaderState = "idle" | "loading" | "playing" | "paused";
+/** "idle" is ordinary editing. Every other state is reader mode, where a click reads from the word. */
+export type ReaderState = "idle" | "ready" | "loading" | "playing" | "paused";
 export type ReaderView = { state: ReaderState; rate: number; message: string };
 export type Reader = {
   toggle: () => void;
-  stop: () => void;
+  /** Stops reading and leaves reader mode. */
+  exit: () => void;
   faster: () => void;
   slower: () => void;
   /** Reads from the word at a document position, or jumps there while reading. */
@@ -87,6 +89,9 @@ export function createReader(
   audio.playbackRate = rate;
 
   let session: Session | undefined;
+  // Reader mode outlasts a reading: it stays on after the last sentence and while paused,
+  // so a click can start another reading, until the user exits it.
+  let active = false;
   let message = "";
   let messageTimer: ReturnType<typeof setTimeout> | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
@@ -99,12 +104,18 @@ export function createReader(
   }
 
   function state(): ReaderState {
-    if (!session) return "idle";
+    if (!session) return active ? "ready" : "idle";
     if (session.paused) return "paused";
     return session.clip && !audio.paused ? "playing" : "loading";
   }
   const view = (): ReaderView => ({ state: state(), rate, message });
   const emit = () => listeners.forEach(listener => listener(view()));
+
+  function setActive(on: boolean) {
+    active = on;
+    document.body.classList.toggle("reader-mode", on);
+    emit();
+  }
 
   function notify(text: string) {
     message = text;
@@ -206,18 +217,24 @@ export function createReader(
     if (!current?.clip) return;
     const next = current.index + 1;
     if (next < current.pieces.length) void playPiece(current, next, current.pieces[next].start);
-    else stop();
+    else endSession();
   }
   audio.addEventListener("ended", onEnded);
 
   function fail(error: unknown) {
     // Tauri rejects commands with the plain error string.
     const text = error instanceof Error ? error.message : String(error);
-    stop();
+    exit();
     notify(text);
   }
 
-  function stop() {
+  function exit() {
+    endSession();
+    if (active) setActive(false);
+  }
+
+  /** Ends the current reading and clears its highlight; reader mode stays on. */
+  function endSession() {
     const current = session;
     if (!current) return;
     session = undefined;
@@ -235,7 +252,8 @@ export function createReader(
   function begin(from: number, to: number, startChar = 0) {
     const script = buildScript(editor.state.doc, from, to);
     if (!script.words.length) return false;
-    stop();
+    endSession();
+    if (!active) setActive(true);
     channel?.postMessage({ from: instance });
     const ranges = pieces(script.text, script.blocks);
     const current: Session = { script, pieces: ranges, clips: new Map(), index: 0, word: -1, paused: false, ended: false };
@@ -303,17 +321,18 @@ export function createReader(
     emit();
   }
 
+  // In reader mode a click reads from that word. Option+click does the same outside it.
+  // Either way the click must not also move the caret, select text or open a link.
+  const claims = (event: MouseEvent) => (active || event.altKey) && !event.metaKey && !event.ctrlKey;
   const onMouseDown = (event: MouseEvent) => {
-    if (!event.altKey || event.button !== 0 || event.metaKey || event.ctrlKey) return;
-    const at = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
-    if (!at) return;
-    // Option+click reads from that word; it must not also move the caret or open a link.
+    if (event.button !== 0 || !claims(event)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-    startAt(at.pos);
+    const at = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
+    if (at) startAt(at.pos);
   };
   const swallowClick = (event: MouseEvent) => {
-    if (!event.altKey || event.metaKey || event.ctrlKey) return;
+    if (!claims(event)) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   };
@@ -323,24 +342,24 @@ export function createReader(
 
   // Another window starting to read stops this one, so only one voice speaks.
   channel?.addEventListener("message", event => {
-    if (event.data?.from !== instance) stop();
+    if (event.data?.from !== instance) exit();
   });
   // Positions in the script are only valid for the document it was built from;
   // reloads from disk change the document without an "update" event.
   const onTransaction = ({ transaction }: { transaction: { docChanged: boolean } }) => {
-    if (transaction.docChanged) stop();
+    if (transaction.docChanged) exit();
   };
   editor.on("transaction", onTransaction);
 
   return {
     toggle,
-    stop,
+    exit,
     faster: () => setRate(rate + 0.1),
     slower: () => setRate(rate - 0.1),
     startAt,
     handleKey(event) {
-      if (!session || event.metaKey || event.ctrlKey) return false;
-      if (event.key === "Escape" && !event.altKey && !event.shiftKey) return stop(), true;
+      if (!active || event.metaKey || event.ctrlKey) return false;
+      if (event.key === "Escape" && !event.altKey && !event.shiftKey) return exit(), true;
       if (event.altKey && event.code === "Equal") return setRate(rate + 0.1), true;
       if (event.altKey && event.code === "Minus") return setRate(rate - 0.1), true;
       return false;
@@ -351,7 +370,7 @@ export function createReader(
       return () => listeners.delete(listener);
     },
     destroy() {
-      stop();
+      exit();
       clearTimeout(messageTimer);
       audio.removeEventListener("ended", onEnded);
       dom.removeEventListener("mousedown", onMouseDown, true);

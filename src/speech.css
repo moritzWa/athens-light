@@ -87,6 +87,18 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Reader mode: a click reads from that word, so the text shows a pointer, not an I-beam or caret. */
+body.reader-mode .ProseMirror {
+  cursor: pointer;
+  caret-color: transparent;
+}
+
+.speech-hint {
+  padding: 0 8px 0 6px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
 .speech-message {
   max-width: 320px;
   padding: 0 8px;
