@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to read and edit CLAUDE.md, AGENTS.md and plan files on Mac</title>
+<meta name="description" content="Where Claude Code, Codex, OpenCode and Cursor keep their markdown files, and how to open them as formatted text on a Mac and keep editing while the agent rewrites them.">
+<link rel="canonical" href="https://athens-light.app/blog/read-edit-claude-code-markdown-files/">
+<meta property="og:title" content="How to read and edit CLAUDE.md, AGENTS.md and plan files on Mac">
+<meta property="og:description" content="Where AI coding agents keep their markdown files, and how to read and edit them as formatted text while the agent is still writing.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://athens-light.app/blog/read-edit-claude-code-markdown-files/">
+<meta property="og:image" content="https://athens-light.app/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "How to read and edit CLAUDE.md, AGENTS.md and plan files on Mac",
+  "datePublished": "2026-11-19",
+  "dateModified": "2026-11-19",
+  "author": { "@type": "Person", "name": "Moritz Wallawitsch", "url": "https://github.com/moritzWa" },
+  "mainEntityOfPage": "https://athens-light.app/blog/read-edit-claude-code-markdown-files/"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Where is the CLAUDE.md file?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Claude Code looks for a project CLAUDE.md at ./CLAUDE.md or ./.claude/CLAUDE.md, your personal one at ~/.claude/CLAUDE.md, and a private per-project one at ./CLAUDE.local.md. On macOS an organization can also set one at /Library/Application Support/ClaudeCode/CLAUDE.md. Run /memory inside Claude Code to list the ones it found." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I open CLAUDE.md on a Mac as formatted text?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Install a Markdown editor that shows formatted text, such as Athens Light, then run open -a \"Athens Light\" CLAUDE.md in Terminal, or press Cmd+I on the file in Finder and choose Change All under Open with. The folder ~/.claude is hidden in Finder, so use Terminal or press Cmd+Shift+G to go to it." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I edit a markdown file while the agent is writing to it?",
+      "acceptedAnswer": { "@type": "Answer", "text": "In Athens Light, yes. The open window reloads within about a second when an agent, git or another app changes the file, and your caret stays where it was. If you have unsaved edits at that moment, a bar offers Keep mine, Take theirs or Keep both." }
+    },
+    {
+      "@type": "Question",
+      "name": "Where does Claude Code save its plans?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Plan mode writes plan files to ~/.claude/plans by default. The plansDirectory setting moves them to a folder inside your project, for example ./plans." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does Claude Code read AGENTS.md?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, from Claude Code v2.1.277. By default it reads AGENTS.md only when there is no CLAUDE.md in the working directory or above it. A CLAUDE.md that imports @AGENTS.md loads both." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I open Cursor .mdc rule files in Athens Light?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, with open -a \"Athens Light\" rule.mdc. The file opens as formatted text and the front matter is hidden. Finder double-click and the Open File dialog only offer .md and .markdown files." }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens if CLAUDE.md is a symlink to AGENTS.md?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Athens Light writes through the link. The symlink stays in place and the target file changes." }
+    }
+  ]
+}
+</script>
+</head>
+<body>
+<div class="page post">
+
+<header style="max-width:none">
+  <a class="brand" href="/"><img src="/favicon.svg" alt="">Athens Light</a>
+  <nav>
+    <a href="/blog/">Blog</a>
+    <a href="https://github.com/moritzWa/athens-light">GitHub</a>
+  </nav>
+</header>
+
+<article>
+  <div class="label">Guide</div>
+  <h1>How to read and edit CLAUDE.md, AGENTS.md and plan files on Mac</h1>
+  <p class="meta">Moritz Wallawitsch &middot; November 19, 2026</p>
+
+  <p>AI coding agents write their instructions, plans and notes as markdown files. You can read them in a terminal or a code editor, but you see raw symbols. This page shows where each tool keeps its files and how to open them as formatted text on a Mac.</p>
+
+  <h2>The short answer</h2>
+  <ul>
+    <li><strong>Where:</strong> <code>CLAUDE.md</code> in the project root or <code>~/.claude/</code> for Claude Code, <code>AGENTS.md</code> for Codex and OpenCode, <code>.cursor/rules/*.mdc</code> or <code>AGENTS.md</code> for Cursor. Claude Code plans are in <code>~/.claude/plans/</code>.</li>
+    <li><strong>How to open one as formatted text:</strong> install <a href="/">Athens Light</a> (free, open source, Apple silicon) and run <code>open -a "Athens Light" CLAUDE.md</code>.</li>
+    <li><strong>How to keep it open while the agent works:</strong> the window reloads within about a second when the agent rewrites the file, and your caret stays put. If you have unsaved edits, it asks before it replaces anything.</li>
+  </ul>
+  <p>I checked every file location below against each tool's own documentation on November 19, 2026. I tested the reload and the conflict bar in a macOS 26 virtual machine, and the screenshots are from it.</p>
+
+  <h2>Where the files live</h2>
+  <div class="tablewrap">
+  <table class="compare">
+    <thead>
+      <tr><th>Tool</th><th>File</th><th>Location</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Claude Code</td><td>Project instructions</td><td><code>./CLAUDE.md</code> or <code>./.claude/CLAUDE.md</code></td></tr>
+      <tr><td>Claude Code</td><td>Your personal instructions</td><td><code>~/.claude/CLAUDE.md</code></td></tr>
+      <tr><td>Claude Code</td><td>Private, this project only</td><td><code>./CLAUDE.local.md</code></td></tr>
+      <tr><td>Claude Code</td><td>Rules</td><td><code>.claude/rules/*.md</code> and <code>~/.claude/rules/</code></td></tr>
+      <tr><td>Claude Code</td><td>Auto memory notes</td><td><code>~/.claude/projects/&lt;project&gt;/memory/</code>, with a <code>MEMORY.md</code> index</td></tr>
+      <tr><td>Claude Code</td><td>Plan mode plans</td><td><code>~/.claude/plans/</code>, or the folder set by <code>plansDirectory</code></td></tr>
+      <tr><td>Codex</td><td>Instructions</td><td><code>~/.codex/AGENTS.md</code>, then <code>AGENTS.md</code> from the project root down to the working folder. <code>AGENTS.override.md</code> wins in the same folder.</td></tr>
+      <tr><td>OpenCode</td><td>Instructions</td><td><code>~/.config/opencode/AGENTS.md</code> and <code>AGENTS.md</code> files in the project. It reads <code>CLAUDE.md</code> where there is no <code>AGENTS.md</code>.</td></tr>
+      <tr><td>Cursor</td><td>Project rules</td><td><code>.cursor/rules/*.mdc</code>. A plain <code>.md</code> file in that folder is ignored.</td></tr>
+      <tr><td>Cursor</td><td>Instructions</td><td><code>AGENTS.md</code> in the project root and in subfolders</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p style="font-size:13px;color:var(--gray)">Sources, all read on November 19, 2026: <a href="https://code.claude.com/docs/en/memory">Claude Code memory</a>, <a href="https://code.claude.com/docs/en/settings-reference#plansdirectory">Claude Code settings (plansDirectory)</a>, <a href="https://developers.openai.com/codex/guides/agents-md">Codex AGENTS.md guide</a>, <a href="https://opencode.ai/docs/rules/">OpenCode rules</a>, <a href="https://cursor.com/docs/context/rules">Cursor rules</a>.</p>
+
+  <p>A few details from those docs:</p>
+  <ul>
+    <li>Claude Code also reads <code>AGENTS.md</code> from version 2.1.277. By default it does so only when there is no <code>CLAUDE.md</code> in the working folder or above it. A <code>CLAUDE.md</code> that contains <code>@AGENTS.md</code> loads both.</li>
+    <li>Claude Code reads a plan back from disk after it compacts a long conversation, so the plan file is the real plan, not only the chat message.</li>
+    <li>Claude Code deletes old plans in <code>~/.claude/plans/</code> after 30 days by default. Set <code>plansDirectory</code> to <code>./plans</code> in <code>.claude/settings.json</code> to keep them in the project.</li>
+    <li>Claude Code strips block-level HTML comments from <code>CLAUDE.md</code> before it sends the file to the model.</li>
+  </ul>
+
+  <h2>Why these files are hard to read raw</h2>
+  <p>They are written for the agent first. A tool table is rows of pipes and dashes. Nested lists are indented dashes. Plan files have headings, checklists and code fences. Claude Code's own docs suggest keeping a <code>CLAUDE.md</code> under 200 lines, which is already a long scroll of symbols.</p>
+  <p><code>cat</code> and <code>less</code> in Terminal print the raw text. Quick Look in Finder shows it too. Visual Studio Code opens a <code>.md</code> file as source, and its Markdown preview is a second pane you open with <kbd>Cmd+K</kbd> then <kbd>V</kbd>. Its docs also describe an experimental Markdown Editor that edits rendered text. A code editor works, but it is a large app for reading one file.</p>
+  <p>The second problem is that these files are not yours alone. The agent edits them while you read. A normal editor makes you notice that and reload.</p>
+
+  <h2>How to open one as formatted text</h2>
+  <ol>
+    <li><strong>Install Athens Light.</strong> It runs on Apple silicon Macs. In Terminal:
+<pre><code>curl -fsSL https://athens-light.app/install.sh | sh</code></pre>
+      Or download the disk image from <a href="https://github.com/moritzWa/athens-light/releases/tag/latest">GitHub</a>.</li>
+    <li><strong>Open the file.</strong> From your project folder:
+<pre><code>open -a "Athens Light" CLAUDE.md</code></pre>
+      For your personal file, use <code>open -a "Athens Light" ~/.claude/CLAUDE.md</code>. Finder hides <code>~/.claude</code>, so in Finder press <kbd>Cmd+Shift+G</kbd> and type the path, or press <kbd>Cmd+Shift+.</kbd> to show hidden folders.</li>
+    <li><strong>Make it the default for .md files</strong> if you want a double-click to work. Select a <code>.md</code> file, press <kbd>Cmd+I</kbd>, pick Athens Light under <strong>Open with</strong> and click <strong>Change All</strong>. <a href="/blog/what-is-an-md-file/">More on opening .md files</a>.</li>
+  </ol>
+  <p>The file opens as a title, headings, lists, a table and links. Click and type to edit. Changes save to the same file about 0.4 seconds after you stop typing.</p>
+
+  <h2>Keep the file open while the agent rewrites it</h2>
+  <p>This is the reason I use it for agent files. Athens Light checks the open file once a second. When something else changes it, the window updates by itself. That covers an agent that overwrites the file, a <code>git checkout</code>, and a tool that replaces the file with a new one.</p>
+  <p>Here is a <code>CLAUDE.md</code> open in the app. The caret is at the end of "Named exports only."</p>
+  <figure>
+    <img src="/img/agent-before.png" alt="Athens Light showing a CLAUDE.md for an API project, with the caret at the end of the line Named exports only" width="820" height="738" loading="lazy">
+    <figcaption>Before: CLAUDE.md in Athens Light. Nobody has touched the file yet.</figcaption>
+  </figure>
+  <p>Then something outside the app rewrites the file. In this test it was a short script that adds a bullet under Code style and a Notes section at the end. It overwrites the file in place, which is what an agent's edit tool does. I did not run a live Claude Code session for this.</p>
+  <figure>
+    <img src="/img/agent-after.png" alt="The same window after the file changed on disk: a new bullet, Validate every request body with zod, appears and the caret is still at the end of Named exports only" width="820" height="738" loading="lazy">
+    <figcaption>After: the new bullet is on screen and the caret did not move. A Commit button appeared because the file is in a git repository and now differs from the last commit.</figcaption>
+  </figure>
+  <p>The new bullet was on screen when I took the screenshot 2.5 seconds after the write. I did not click or press anything. I also ran <code>git checkout CLAUDE.md</code> to put the old version back, and the window followed that too.</p>
+
+  <h2>What happens when you and the agent both edit</h2>
+  <p>If you have unsaved edits at the moment the file changes, Athens Light does not replace your text and does not write over the agent's. It pauses autosave and shows a bar with three choices:</p>
+  <ul>
+    <li><strong>Keep mine.</strong> Your version is written to the file.</li>
+    <li><strong>Take theirs.</strong> Your unsaved edits are dropped and the window shows the file as it is on disk.</li>
+    <li><strong>Keep both.</strong> The window shows the file on disk. Your version is saved next to it as <code>CLAUDE (my edits 2026-11-19 14.44.07).md</code>.</li>
+  </ul>
+  <figure>
+    <img src="/img/agent-conflict.png" alt="Athens Light with a long unsaved sentence in the first bullet and a bar at the top that says This file changed outside Athens Light, and you have unsaved edits, with the buttons Keep mine, Take theirs and Keep both" width="820" height="738" loading="lazy">
+    <figcaption>I was typing when the script wrote the file. The bar appeared and nothing was lost.</figcaption>
+  </figure>
+  <p>I tried Take theirs and Keep both. Take theirs left the file as the agent wrote it. Keep both created the extra file in the same folder, and <code>git status</code> listed it as untracked. Delete it when you are done. This matters most in <code>.claude/rules/</code>, because Claude Code loads every <code>.md</code> file in that folder as a rule.</p>
+  <p>You only see the bar when your edits are not yet saved. Autosave runs 0.4 seconds after you stop typing, so in practice it shows up when you are typing as the agent writes.</p>
+
+  <h2>Limits you should know</h2>
+  <ul>
+    <li><strong>The first edit rewrites the file in the editor's style.</strong> Opening a file never changes it. After my first keystroke, the tool table in the test file changed like this:
+<pre><code>-| Name | URL | Deploy |
+-| --- | --- | --- |
+-| staging | https://staging.acme.test | on merge to `main` |
++| Name       | URL                                                    | Deploy             |
++| ---------- | ------------------------------------------------------ | ------------------ |
++| staging    | [https://staging.acme.test](https://staging.acme.test) | on merge to `main` |</code></pre>
+      The columns were padded and the bare URL became a link. The meaning is the same, but the diff is bigger than your edit. Bullet characters and spacing can change too. If a file must stay byte for byte the same, use a plain text editor.</li>
+    <li><strong>Files with raw HTML open read-only.</strong> A <code>&lt;details&gt;</code> block was enough to trigger it. The window shows "Read-only: this file has HTML, which Athens Light can't save". HTML comments are fine.</li>
+    <li><strong>Apple silicon only.</strong> There is no Intel, Windows or Linux build.</li>
+    <li><strong>It is an editor, not a viewer for a whole project.</strong> There is no file tree and no outline, and it does not export. You open one file at a time, as tabs.</li>
+    <li><strong>Editing a file does not change a running agent.</strong> Claude Code's docs say it loads <code>CLAUDE.md</code> files at the start of a session. OpenCode's docs say it notices edits to <code>AGENTS.md</code> before its next request. I tested the editor side only, not how each agent reacts.</li>
+    <li><strong>Cursor <code>.mdc</code> files need Terminal.</strong> <code>open -a "Athens Light" rule.mdc</code> opens the file as formatted text and hides the front matter. Finder double-click and the Open File dialog only list <code>.md</code> and <code>.markdown</code>. I opened an <code>.mdc</code> file but did not edit one.</li>
+  </ul>
+
+  <h2>Questions</h2>
+  <h3>Where is the CLAUDE.md file?</h3>
+  <p>In your project it is <code>./CLAUDE.md</code> or <code>./.claude/CLAUDE.md</code>. Your personal one is <code>~/.claude/CLAUDE.md</code>, and a private one for one project is <code>./CLAUDE.local.md</code>. On macOS an organization can also set one at <code>/Library/Application Support/ClaudeCode/CLAUDE.md</code>. Run <code>/memory</code> inside Claude Code to list the ones it found.</p>
+  <h3>How do I open CLAUDE.md on a Mac as formatted text?</h3>
+  <p>Install a markdown editor that shows formatted text, then run <code>open -a "Athens Light" CLAUDE.md</code>, or set it as the default app for <code>.md</code> files. The steps are above. <a href="/blog/best-markdown-editors-mac/">I compared six such editors</a> if you want another one.</p>
+  <h3>Can I edit a markdown file while the agent is writing to it?</h3>
+  <p>In Athens Light, yes. The window reloads within about a second and keeps your caret. If you have unsaved edits, the bar asks which version to keep.</p>
+  <h3>Where does Claude Code save its plans?</h3>
+  <p>In <code>~/.claude/plans/</code> by default. Each plan is its own markdown file. The <code>plansDirectory</code> setting moves them into your project. Press <kbd>Ctrl+G</kbd> in Claude Code to open the plan in your default text editor before you approve it.</p>
+  <h3>Does Claude Code read AGENTS.md?</h3>
+  <p>Yes, from version 2.1.277. By default it reads <code>AGENTS.md</code> only when you have no <code>CLAUDE.md</code> in the working folder or above it. To use both, add <code>@AGENTS.md</code> to your <code>CLAUDE.md</code>.</p>
+  <h3>What if CLAUDE.md is a symlink to AGENTS.md?</h3>
+  <p>I tested this. Athens Light writes through the link. The symlink stays and <code>AGENTS.md</code> gets the change. The window title shows the target's name, <code>AGENTS.md</code>.</p>
+  <h3>Is it safe to let an editor and an agent share a file?</h3>
+  <p>The editor never writes over a change it has not looked at. It checks the file before each save. If the file changed and you have unsaved edits, it stops and asks. The one cost is the style rewrite on your first edit.</p>
+</article>
+
+<footer>
+  <span>MIT licensed. Made by <a href="https://github.com/moritzWa">Moritz Wallawitsch</a>.</span>
+  <span><a href="https://tryathens.com">Athens</a> &middot; <a href="/blog/">All posts</a></span>
+</footer>
+
+</div>
+</body>
+</html>
