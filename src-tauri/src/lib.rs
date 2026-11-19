@@ -101,6 +101,15 @@ fn restore_document_frame(window: &WebviewWindow) {
     let _ = window.show();
 }
 
+// A file opened from Finder arrives as an Opened event that macOS can deliver
+// before setup has registered the Session, so the bookkeeping must not assume it
+// exists. restore_session records those early windows once it does.
+fn with_session(app: &AppHandle, record: impl FnOnce(&Session)) {
+    if let Some(session) = app.try_state::<Session>() {
+        record(&session);
+    }
+}
+
 fn open_path(app: &AppHandle, path: PathBuf) {
     let path = match std::path::absolute(path) {
         Ok(path) => path,
@@ -123,7 +132,7 @@ fn open_path(app: &AppHandle, path: PathBuf) {
         .find(|(_, p)| **p == path_str)
         .map(|(label, _)| label.clone());
     if let Some(window) = existing.and_then(|label| app.get_webview_window(&label)) {
-        app.state::<Session>().document_opened(&path_str);
+        with_session(app, |session| session.document_opened(&path_str));
         let _ = window.set_focus();
         return;
     }
@@ -134,7 +143,7 @@ fn open_path(app: &AppHandle, path: PathBuf) {
         .lock()
         .unwrap()
         .insert(label.clone(), path_str.clone());
-    app.state::<Session>().document_opened(&path_str);
+    with_session(app, |session| session.document_opened(&path_str));
 
     let title = path
         .file_name()
@@ -177,13 +186,18 @@ fn document_window_destroyed(app: &AppHandle, label: &str) {
     };
     if let Some(path) = path {
         if others_remain && !EXITING.load(Ordering::SeqCst) {
-            app.state::<Session>().document_closed(&path);
+            with_session(app, |session| session.document_closed(&path));
         }
     }
 }
 
 fn restore_session(app: &AppHandle) {
     let session = app.state::<Session>();
+    // Documents opened before the Session existed, such as the file that launched the app.
+    let early: Vec<String> = app.state::<OpenFiles>().0.lock().unwrap().values().cloned().collect();
+    for path in early {
+        session.document_opened(&path);
+    }
     for path in session.open_documents() {
         if std::path::Path::new(&path).is_file() {
             open_path(app, PathBuf::from(path));
