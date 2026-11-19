@@ -1,0 +1,98 @@
+name: Build and publish
+
+# Every push to main builds a signed app and replaces the files on the rolling
+# "latest" release. The download links never change:
+#   https://github.com/moritzWa/athens-light/releases/download/latest/Athens-Light-arm64.zip
+#   https://athens-light.app/install.sh
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "site/**"
+      - "docs/**"
+      - "**.md"
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      MACOS_CERT_P12: ${{ secrets.MACOS_CERT_P12 }}
+      MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: bun install --frozen-lockfile
+
+      - run: bun test scripts
+
+      - name: Import signing certificate
+        run: |
+          test -n "$MACOS_CERT_P12" || { echo "MACOS_CERT_P12 secret is missing"; exit 1; }
+          KEYCHAIN="$RUNNER_TEMP/build.keychain-db"
+          KEYCHAIN_PASSWORD=$(uuidgen)
+          echo "$MACOS_CERT_P12" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm "$RUNNER_TEMP/cert.p12"
+          security find-identity -v -p codesigning
+
+      - name: Build and sign
+        run: bun run build:mac
+
+      - name: Notarize
+        if: env.APPLE_ID != '' && env.APPLE_APP_SPECIFIC_PASSWORD != '' && env.APPLE_TEAM_ID != ''
+        run: |
+          APP="src-tauri/target/release/bundle/macos/Athens Light.app"
+          ditto -c -k --keepParent "$APP" "$RUNNER_TEMP/notarize.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/notarize.zip" \
+            --apple-id "$APPLE_ID" --password "$APPLE_APP_SPECIFIC_PASSWORD" --team-id "$APPLE_TEAM_ID" \
+            --wait --timeout 30m
+          xcrun stapler staple "$APP"
+
+      - name: Package
+        run: |
+          mkdir -p out
+          ditto -c -k --keepParent "src-tauri/target/release/bundle/macos/Athens Light.app" out/Athens-Light-arm64.zip
+          (cd out && shasum -a 256 Athens-Light-arm64.zip > Athens-Light-arm64.zip.sha256)
+
+      - name: Publish to the latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(jq -r .version src-tauri/tauri.conf.json)
+          SHORT=$(git rev-parse --short HEAD)
+          git tag -f latest "$GITHUB_SHA"
+          git push -f origin refs/tags/latest
+          NOTES="Build of ${VERSION} from commit ${SHORT}, updated on every push to main.
+
+          Install: \`curl -fsSL https://athens-light.app/install.sh | sh\`
+          Or unzip and drag **Athens Light.app** to Applications."
+          if gh release view latest >/dev/null 2>&1; then
+            gh release edit latest --title "Athens Light (latest build)" --notes "$NOTES" --latest
+          else
+            gh release create latest --title "Athens Light (latest build)" --notes "$NOTES" --latest --verify-tag
+          fi
+          gh release upload latest out/Athens-Light-arm64.zip out/Athens-Light-arm64.zip.sha256 --clobber

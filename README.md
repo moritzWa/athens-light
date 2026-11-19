@@ -10,6 +10,16 @@ Athens Light is the minimalist version of [Athens](https://tryathens.com), the A
 
 Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). The app is about 3 MB.
 
+## Install
+
+```sh
+curl -fsSL https://athens-light.app/install.sh | sh
+```
+
+Run it again to update. Or download [Athens-Light-arm64.zip](https://github.com/moritzWa/athens-light/releases/download/latest/Athens-Light-arm64.zip), drag the app to Applications, and run `xattr -dr com.apple.quarantine "/Applications/Athens Light.app"` once (the build is signed but not notarized yet). Apple silicon only.
+
+Every push to `main` builds a signed app in GitHub Actions and replaces the files on the [latest release](https://github.com/moritzWa/athens-light/releases/tag/latest), so these links never change. To notarize, add the repository secrets `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID`; the workflow then notarizes and staples automatically.
+
 ## Features
 
 - Double-click a `.md` file to edit it as rich text, with markdown shortcuts (`# `, `**bold**`, `- `, and so on)
