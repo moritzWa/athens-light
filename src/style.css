@@ -272,6 +272,107 @@ body.launcher .recent-dir {
   font: 12px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
   color: #b4690e;
 }
+#titlebar.can-commit #badge {
+  right: 96px;
+}
+
+#commit-button {
+  position: absolute;
+  right: 14px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+  cursor: pointer;
+}
+#commit-button[hidden] {
+  display: none;
+}
+#commit-button:hover,
+#commit-button[aria-expanded="true"] {
+  background: var(--code-bg);
+  color: var(--fg);
+}
+
+#commit-panel {
+  position: fixed;
+  top: 40px;
+  right: 14px;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 340px;
+  max-width: calc(100vw - 28px);
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 6px 24px #00000018;
+  font: 13px/1.5 -apple-system, BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+}
+#commit-panel[hidden] {
+  display: none;
+}
+#commit-panel textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  resize: none;
+}
+#commit-panel textarea:focus {
+  outline: 1px solid var(--link);
+}
+.commit-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  margin-top: 8px;
+}
+.commit-note {
+  flex: 1;
+  color: var(--muted);
+  font-size: 12px;
+}
+.commit-actions button {
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+.commit-actions button:hover {
+  background: var(--code-bg);
+}
+.commit-actions button[type="submit"] {
+  background: var(--link);
+  color: var(--bg);
+}
+.commit-actions button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.commit-error {
+  margin-top: 6px;
+  max-height: 120px;
+  overflow: auto;
+  color: #b4690e;
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+.commit-error:empty {
+  display: none;
+}
 
 ul[data-type="taskList"] {
   list-style: none;

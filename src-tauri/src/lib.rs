@@ -1,3 +1,4 @@
+mod git;
 mod images;
 mod image_clipboard;
 mod image_versions;
@@ -411,6 +412,10 @@ pub fn run() {
             image_versions::image_versions,
             image_versions::file_version,
             write_file,
+            git::git_status,
+            git::git_commit_info,
+            git::git_commit,
+            git::git_commit_message,
             pick_image,
             image_clipboard::copy_image_to_clipboard,
             open_url,

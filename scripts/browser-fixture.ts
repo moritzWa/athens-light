@@ -66,7 +66,7 @@ export async function browserFixture(source: string, assetDirectory?: string, fi
     const errors: string[] = [];
     page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
     await page.addInitScript(({ source, assetDirectory, file }) => {
-      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[], imageCopies: [] as string[], imageChecks: [] as string[][], fileChecks: 0, sideFiles: [] as { path: string; content: string }[], failImageCopy: false, speech: [] as { text: string; language: string }[], speechError: "" };
+      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[], imageCopies: [] as string[], imageChecks: [] as string[][], fileChecks: 0, sideFiles: [] as { path: string; content: string }[], failImageCopy: false, git: { repo: false, head: null as string | null, suggestion: null as string | null, commitError: "", commits: [] as string[], info: 0 }, speech: [] as { text: string; language: string }[], speechError: "" };
       // Silent audio with one mark per word, so reading runs without making any sound.
       const silentSpeech = (text: string) => {
         const marks: { start: number; end: number; start_time: number }[] = [];
@@ -117,6 +117,14 @@ export async function browserFixture(source: string, assetDirectory?: string, fi
             if (file) await fetch(`/fixture-file?path=${encodeURIComponent(args.path)}`, { method: "POST", body: args.content });
           }
           if (command === "open_url") state.opens.push(args.url);
+          if (command === "git_status") return { repo: state.git.repo, dirty: state.git.repo && state.disk !== state.git.head };
+          if (command === "git_commit_info") { state.git.info++; return { head: state.git.head, diff: "diff", recent: ["Earlier commit"] }; }
+          if (command === "git_commit_message") return state.git.suggestion;
+          if (command === "git_commit") {
+            if (state.git.commitError) throw state.git.commitError;
+            state.git.commits.push(args.message);
+            state.git.head = state.disk;
+          }
           if (command === "speech_synthesize") {
             state.speech.push({ text: args.text, language: args.language });
             if (state.speechError) throw state.speechError;

@@ -7,6 +7,7 @@ import { normalizeMarkdown as normalize } from "./comments";
 import { mountComments } from "./comment-ui";
 import { mountLinks } from "./link-ui";
 import { mountToolbar } from "./toolbar";
+import { mountCommit, type CommitInfo } from "./commit-ui";
 import { mountTableControls } from "./table-ui";
 import { mountImageReload, setImageDocumentPath } from "./images";
 import { createPathCopiedToast } from "./toast";
@@ -89,6 +90,7 @@ async function main() {
   const serialize = () => front + normalize(editor.getMarkdown());
   let synced: string;
 
+  let commitUi: ReturnType<typeof mountCommit> | undefined;
   let saves = 0;
   let knownVersion: string | null | undefined;
   let conflict: { theirs: string; close: () => void } | undefined;
@@ -107,6 +109,7 @@ async function main() {
     synced = md;
     lastDisk = md;
     saves++;
+    void commitUi?.refresh();
   }
 
   async function save() {
@@ -140,6 +143,23 @@ async function main() {
   }
   load();
   synced = serialize();
+  commitUi = mountCommit(header, {
+    backend: {
+      status: () => invoke("git_status", { path }),
+      info: () => invoke<CommitInfo>("git_commit_info", { path }),
+      suggest: (diff, recent) => invoke<string | null>("git_commit_message", { diff, recent }),
+      commit: message => invoke("git_commit", { path, message }),
+    },
+    flush: async () => {
+      await save();
+      if (conflict) throw new Error("The file changed outside Athens Light. Resolve that first.");
+      return lastDisk;
+    },
+    fileName: () => baseName(path),
+    restoreFocus: () => editor.view.focus(),
+  });
+  editor.on("destroy", () => commitUi?.destroy());
+  void commitUi.refresh();
   const comments = mountComments(editor);
   editor.on("destroy", () => comments.destroy());
   const links = mountLinks(editor, url => invoke("open_url", { url }));
@@ -173,6 +193,7 @@ async function main() {
           path = await invoke<string>("rename_file", { path, newName: input.value });
           knownVersion = undefined;
           setImageDocumentPath(editor, path);
+          void commitUi?.refresh();
         } catch {
           failed = true;
         }
@@ -202,6 +223,7 @@ async function main() {
     load();
     synced = serialize();
     restore();
+    void commitUi?.refresh();
   }
 
   // True when the file changed outside the app and was reloaded or raised a conflict.
@@ -263,7 +285,10 @@ async function main() {
     polling = false;
   };
   const watcher = window.setInterval(poll, WATCH_INTERVAL_MS);
-  const refocus = () => void checkDisk(true).catch(() => {});
+  const refocus = () => {
+    void commitUi?.refresh();
+    void checkDisk(true).catch(() => {});
+  };
   window.addEventListener("focus", refocus);
   editor.on("destroy", () => {
     window.clearInterval(watcher);
