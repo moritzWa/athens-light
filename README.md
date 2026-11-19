@@ -8,7 +8,7 @@ Website and comparison of Mac markdown editors: **[athens-light.app](https://ath
 
 Athens Light is the minimalist version of [Athens](https://tryathens.com), the AI writing editor I built earlier.
 
-Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). The app is about 3 MB.
+Built with [Tauri](https://tauri.app) (Rust) and [Tiptap](https://tiptap.dev). The download is about 2.6 MB.
 
 ## Install
 
