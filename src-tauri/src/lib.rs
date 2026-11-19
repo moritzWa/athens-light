@@ -409,6 +409,7 @@ pub fn run() {
             initial_path,
             read_file,
             image_versions::image_versions,
+            image_versions::file_version,
             write_file,
             pick_image,
             image_clipboard::copy_image_to_clipboard,

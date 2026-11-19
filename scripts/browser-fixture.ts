@@ -1,5 +1,5 @@
 import { chromium, webkit, type Page } from "playwright";
-import { stat } from "node:fs/promises";
+import { stat, readFile, writeFile } from "node:fs/promises";
 
 export async function openContextToolbar(page: Page) {
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
@@ -19,7 +19,8 @@ export async function openContextToolbar(page: Page) {
   await page.getByRole("toolbar", { name: "Formatting and insert" }).waitFor();
 }
 
-export async function browserFixture(source: string, assetDirectory?: string) {
+// With `file`, the document is a real file inside assetDirectory, so tests can change it the way other apps do.
+export async function browserFixture(source: string, assetDirectory?: string, file?: string) {
   const bundle = await Bun.build({ entrypoints: [new URL("../src/main.ts", import.meta.url).pathname], target: "browser", format: "iife" });
   if (!bundle.success) throw new Error("Frontend bundle failed");
   const js = bundle.outputs.find(output => output.path.endsWith(".js"))!;
@@ -36,6 +37,11 @@ export async function browserFixture(source: string, assetDirectory?: string) {
           try { const info = await stat(path, { bigint: true }); return `${info.size}:${info.mtimeNs}:${info.ctimeNs}:${info.ino}`; }
           catch { return null; }
         })));
+      }
+      if (file && path === "/fixture-file") {
+        if (url.searchParams.get("path") !== file) throw new Error("Unexpected fixture document path");
+        if (request.method === "POST") { await writeFile(file, await request.text()); return new Response("ok"); }
+        try { return new Response(await readFile(file, "utf8")); } catch { return new Response("Document missing", { status: 404 }); }
       }
       if (assetDirectory && path === "/fixture-image") {
         const file = url.searchParams.get("path")!;
@@ -59,8 +65,8 @@ export async function browserFixture(source: string, assetDirectory?: string) {
     const page = await browser.newPage({ viewport: { width: 820, height: 920 }, colorScheme: "light" });
     const errors: string[] = [];
     page.on("pageerror", error => { errors.push(error.message); console.error(error.message); });
-    await page.addInitScript(({ source, assetDirectory }) => {
-      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[], imageCopies: [] as string[], imageChecks: [] as string[][], failImageCopy: false, speech: [] as { text: string; language: string }[], speechError: "" };
+    await page.addInitScript(({ source, assetDirectory, file }) => {
+      const state = { disk: source, writes: [] as string[], opens: [] as string[], copies: [] as string[], imageCopies: [] as string[], imageChecks: [] as string[][], fileChecks: 0, sideFiles: [] as { path: string; content: string }[], failImageCopy: false, speech: [] as { text: string; language: string }[], speechError: "" };
       // Silent audio with one mark per word, so reading runs without making any sound.
       const silentSpeech = (text: string) => {
         const marks: { start: number; end: number; start_time: number }[] = [];
@@ -86,15 +92,30 @@ export async function browserFixture(source: string, assetDirectory?: string) {
         metadata: { currentWindow: { label: "fixture" } }, transformCallback: () => 1,
         convertFileSrc: (path: string) => `/fixture-image?path=${encodeURIComponent(path)}`,
         invoke: async (command: string, args: any) => {
-          if (command === "initial_path") return assetDirectory ? `${assetDirectory}/note.md` : "/comment-fixture.md";
+          if (command === "initial_path") return file ?? (assetDirectory ? `${assetDirectory}/note.md` : "/comment-fixture.md");
           if (command === "image_versions") {
             state.imageChecks.push(args.paths);
             return assetDirectory
               ? fetch(`/image-versions?paths=${encodeURIComponent(JSON.stringify(args.paths))}`).then(response => response.json())
               : args.paths.map(() => "fixture-version");
           }
-          if (command === "read_file") return state.disk;
-          if (command === "write_file") { state.disk = args.content; state.writes.push(args.content); }
+          if (command === "file_version") {
+            state.fileChecks++;
+            return assetDirectory
+              ? fetch(`/image-versions?paths=${encodeURIComponent(JSON.stringify([args.path]))}`).then(response => response.json()).then(versions => versions[0])
+              : "fixture-version";
+          }
+          if (command === "read_file") {
+            if (!file) return state.disk;
+            const response = await fetch(`/fixture-file?path=${encodeURIComponent(args.path)}`);
+            if (!response.ok) throw new Error(await response.text());
+            return response.text();
+          }
+          if (command === "write_file" && file && args.path !== file) state.sideFiles.push({ path: args.path, content: args.content });
+          else if (command === "write_file") {
+            state.disk = args.content; state.writes.push(args.content);
+            if (file) await fetch(`/fixture-file?path=${encodeURIComponent(args.path)}`, { method: "POST", body: args.content });
+          }
           if (command === "open_url") state.opens.push(args.url);
           if (command === "speech_synthesize") {
             state.speech.push({ text: args.text, language: args.language });
@@ -109,7 +130,7 @@ export async function browserFixture(source: string, assetDirectory?: string) {
           return 1;
         },
       };
-    }, { source, assetDirectory });
+    }, { source, assetDirectory, file });
     await page.goto(server.url.href);
     await page.locator(".ProseMirror").waitFor();
     return { page, errors, close: async () => { await browser?.close(); server.stop(true); } };
