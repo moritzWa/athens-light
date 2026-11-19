@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>What is a .md file? How to open and edit one on Mac</title>
+<meta name="description" content="A .md file is a plain text file written in Markdown. Here is where they come from, five ways to open one on a Mac, and how to edit it as formatted text.">
+<link rel="canonical" href="https://athens-light.app/blog/what-is-an-md-file/">
+<meta property="og:title" content="What is a .md file? How to open and edit one on Mac">
+<meta property="og:description" content="A .md file is plain text written in Markdown. Five ways to open one on a Mac, and how to edit it as formatted text.">
+<meta property="og:type" content="article">
+<meta property="og:url" content="https://athens-light.app/blog/what-is-an-md-file/">
+<meta property="og:image" content="https://athens-light.app/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/favicon.svg">
+<link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "headline": "What is a .md file? How to open and edit one on Mac",
+  "datePublished": "2026-11-19",
+  "dateModified": "2026-11-19",
+  "author": { "@type": "Person", "name": "Moritz Wallawitsch", "url": "https://github.com/moritzWa" },
+  "mainEntityOfPage": "https://athens-light.app/blog/what-is-an-md-file/"
+}
+</script>
+</head>
+<body>
+<div class="page post">
+
+<header style="max-width:none">
+  <a class="brand" href="/"><img src="/favicon.svg" alt="">Athens Light</a>
+  <nav>
+    <a href="/blog/">Blog</a>
+    <a href="https://github.com/moritzWa/athens-light">GitHub</a>
+  </nav>
+</header>
+
+<article>
+  <div class="label">Guide</div>
+  <h1>What is a .md file? How to open and edit one on Mac</h1>
+  <p class="meta">Moritz Wallawitsch &middot; November 19, 2026</p>
+
+  <p>A <code>.md</code> file is a plain text file written in Markdown. Markdown is a way to mark up text with ordinary characters: a <code>#</code> in front of a line makes it a heading, and <code>**two stars**</code> around a word make it bold. The file holds only text, so any text editor can open it.</p>
+  <p>If you double-clicked one on a Mac and got an error, or a wall of symbols, this page is for you.</p>
+
+  <h2>What is inside a .md file</h2>
+  <p>Here is a short one:</p>
+<pre><code># Trip notes
+
+Flights are **booked**. Still to do:
+
+- [x] Hotel
+- [ ] Rental car
+
+See the [map](https://maps.apple.com).</code></pre>
+  <p>Opened in a Markdown editor, that shows a large title, a line with one bold word, a checklist and a link. Opened in a plain text editor, you see exactly what is above. Both are the same file.</p>
+  <p>John Gruber created Markdown in 2004 so that people could write for the web without typing HTML. It stuck because the plain version is readable on its own.</p>
+
+  <h2>Where .md files come from</h2>
+  <ul>
+    <li><strong>Code projects.</strong> Almost every repository on GitHub has a <code>README.md</code> that explains the project.</li>
+    <li><strong>AI tools.</strong> Coding agents such as Claude Code read and write files like <code>CLAUDE.md</code>, <code>AGENTS.md</code> and plan files. Many chat tools can export an answer as Markdown.</li>
+    <li><strong>Notes apps.</strong> Obsidian and others keep every note as a <code>.md</code> file in a folder.</li>
+    <li><strong>Docs and blogs.</strong> Many documentation sites and blogs are written in Markdown.</li>
+  </ul>
+  <p>The file extension is sometimes <code>.markdown</code> instead. It is the same format.</p>
+
+  <h2>Five ways to open a .md file on Mac</h2>
+
+  <h3>1. TextEdit, already on your Mac</h3>
+  <p>Right-click the file, choose <strong>Open With</strong>, then <strong>TextEdit</strong>. You see the raw text with the symbols. It is fine for reading a short file and fixing a typo. It does not format anything.</p>
+
+  <h3>2. Quick Look in Finder</h3>
+  <p>Select the file and press <kbd>Space</kbd>. Quick Look shows the text without opening an app. It is a fast peek, and it also shows the raw symbols.</p>
+
+  <h3>3. A code editor</h3>
+  <p>If you already use Visual Studio Code or another code editor, it opens <code>.md</code> files and can show a formatted preview next to the text. It is a big app for reading one file.</p>
+
+  <h3>4. A Markdown editor that shows formatted text</h3>
+  <p>This is what most people want: open the file and see a title, bold words and a checklist, then click and type. Several apps do this. <a href="/blog/best-markdown-editors-mac/">I compared six of them</a> on price, size and how you edit.</p>
+
+  <h3>5. Athens Light</h3>
+  <p>I built <a href="/">Athens Light</a> for exactly this case. It is free and open source, and the app is about 3 MB. Double-click a <code>.md</code> file and it opens as formatted text. Edit it, and the changes save back to the same file as you type. There is nothing to set up: no vault, no account, no sync.</p>
+  <p>Install it in Terminal:</p>
+<pre><code>curl -fsSL https://athens-light.app/install.sh | sh</code></pre>
+  <p>Or download the disk image from <a href="https://github.com/moritzWa/athens-light/releases/tag/latest">GitHub</a> and drag the app to Applications. It runs on Apple silicon Macs.</p>
+
+  <h2>Make .md files open in the app you want</h2>
+  <ol>
+    <li>Select any <code>.md</code> file in Finder and press <kbd>Cmd+I</kbd>.</li>
+    <li>Under <strong>Open with</strong>, pick the app.</li>
+    <li>Click <strong>Change All</strong>, then confirm.</li>
+  </ol>
+  <p>From Terminal, <code>open notes.md</code> uses that default, and <code>open -a "Athens Light" notes.md</code> picks the app yourself.</p>
+
+  <h2>Is it safe to edit a .md file?</h2>
+  <p>Yes. It is plain text, so nothing runs when you open it. One thing to know: a Markdown editor that shows formatted text rewrites the file in its own style when you save. Bullet characters or spacing can change, and unusual syntax may not survive. For notes and docs this does not matter. If a file has to stay byte for byte the same, such as a config file, use a plain text editor.</p>
+
+  <h2>Questions</h2>
+  <h3>Can I open a .md file in Word or Google Docs?</h3>
+  <p>Word opens it as plain text. Google Docs can import Markdown and convert it to a document, but you lose the file format. If you want to keep the <code>.md</code> file, edit it in a Markdown editor.</p>
+  <h3>Can I convert a .md file to PDF?</h3>
+  <p>Yes. Most full-featured Markdown editors export to PDF. Athens Light does not export. It only edits.</p>
+  <h3>Do I need to know Markdown to use one?</h3>
+  <p>No. In an editor like Athens Light you can type normally. If you do want shortcuts, typing <code># </code> at the start of a line makes a heading and <code>- </code> starts a list.</p>
+</article>
+
+<footer>
+  <span>MIT licensed. Made by <a href="https://github.com/moritzWa">Moritz Wallawitsch</a>.</span>
+  <span><a href="https://tryathens.com">Athens</a> &middot; <a href="/blog/">All posts</a></span>
+</footer>
+
+</div>
+</body>
+</html>
