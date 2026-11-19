@@ -111,16 +111,21 @@ try {
   // Option+click entered reader mode, where a plain click reads from the word and leaves the caret alone.
   assert.equal(await controls.isVisible(), true, "controls are visible in reader mode");
   assert.equal(await page.evaluate(() => document.body.classList.contains("reader-mode")), true);
-  const alpha = await pointAt("Alpha");
-  await page.mouse.click(alpha.x, alpha.y);
+  // Hovering previews the sentence a click would read from; the click starts at its beginning.
+  const gamma = await pointAt("gamma");
+  await page.mouse.move(gamma.x, gamma.y);
+  await page.waitForFunction(() => [...document.querySelectorAll(".speech-hover")].map(node => node.textContent).join("") === "Alpha beta gamma delta.", undefined, { timeout: 5000 });
+  await page.mouse.click(gamma.x, gamma.y);
   await waitWord("Alpha");
-  assert((await calls()).at(-1)!.text.startsWith("Alpha"), "a plain click in reader mode did not read from the word");
+  assert((await calls()).at(-1)!.text.startsWith("Alpha beta gamma delta."), "a click in reader mode did not read from the start of the sentence");
+  assert.equal(await page.locator(".ProseMirror .speech-hover").count(), 0, "the hover preview stayed on the sentence being read");
   assert.equal(await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.from), from, "a click in reader mode moved the caret");
 
   // Escape leaves reader mode; then a click places the caret and reads nothing.
   await page.keyboard.press("Escape");
   await controls.waitFor({ state: "hidden" });
   assert.equal(await page.evaluate(() => document.body.classList.contains("reader-mode")), false);
+  assert.equal(await page.locator(".ProseMirror .speech-hover").count(), 0, "hover preview outlived reader mode");
   const readsBefore = (await calls()).length;
   const third = await pointAt("Third");
   await page.mouse.click(third.x, third.y);

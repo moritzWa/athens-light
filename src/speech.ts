@@ -114,7 +114,33 @@ export function createReader(
   function setActive(on: boolean) {
     active = on;
     document.body.classList.toggle("reader-mode", on);
+    if (!on) {
+      hoverScript = undefined;
+      showHover(undefined);
+    }
     emit();
+  }
+
+  // The sentence under the pointer is previewed in reader mode, since a click reads from its start.
+  let hoverScript: Script | undefined;
+  let hovered: { from: number; to: number } | undefined;
+  function showHover(range: { from: number; to: number } | undefined) {
+    if (hovered?.from === range?.from && hovered?.to === range?.to) return;
+    hovered = range;
+    if (!editor.isDestroyed) editor.view.dispatch(editor.state.tr.setMeta(speechKey, { hover: range }).setMeta("addToHistory", false));
+  }
+  function hover(position: number | undefined) {
+    if (position === undefined) return showHover(undefined);
+    hoverScript ??= buildScript(editor.state.doc);
+    const script = hoverScript;
+    const sentence = script.sentences.find(candidate => {
+      const range = documentRange(script, candidate);
+      return position >= range.from && position <= range.to;
+    });
+    const range = sentence && documentRange(script, sentence);
+    // The sentence being spoken already has its own mark.
+    const speaking = speechKey.getState(editor.state)?.sentence;
+    showHover(range && !(speaking && speaking.from === range.from && speaking.to === range.to) ? range : undefined);
   }
 
   function notify(text: string) {
@@ -245,7 +271,7 @@ export function createReader(
     audio.pause();
     audio.removeAttribute("src");
     audio.load();
-    paint({});
+    paint({ sentence: undefined, word: undefined });
     emit();
   }
 
@@ -291,7 +317,7 @@ export function createReader(
     if (current) {
       const { script } = current;
       if (position >= script.pos[0] && position <= script.pos[script.pos.length - 1] + 1) {
-        const char = script.words[wordIndexAt(script, charAt(script, position))].start;
+        const char = sentenceStart(script, script.words[wordIndexAt(script, charAt(script, position))].start);
         current.paused = false;
         const index = Math.max(0, current.pieces.findIndex(range => range.end > char));
         if (index === current.index && current.clip) {
@@ -309,8 +335,13 @@ export function createReader(
     const end = editor.state.doc.content.size;
     const block = buildScript(editor.state.doc, $position.depth ? $position.start() : position, end);
     if (!block.words.length) return notify("Nothing to read");
-    const word = block.words[wordIndexAt(block, charAt(block, position))];
-    begin(block.pos[word.start], end);
+    const start = sentenceStart(block, block.words[wordIndexAt(block, charAt(block, position))].start);
+    begin(block.pos[start], end);
+  }
+
+  /** Reading starts at the beginning of the clicked sentence, not mid-sentence. */
+  function sentenceStart(script: Script, char: number) {
+    return script.sentences.find(sentence => sentence.end > char)?.start ?? char;
   }
 
   function setRate(value: number) {
@@ -329,6 +360,8 @@ export function createReader(
     event.preventDefault();
     event.stopImmediatePropagation();
     const at = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
+    // The sentence is about to get its own mark; a stale preview would reappear once reading moves on.
+    showHover(undefined);
     if (at) startAt(at.pos);
   };
   const swallowClick = (event: MouseEvent) => {
@@ -336,7 +369,14 @@ export function createReader(
     event.preventDefault();
     event.stopImmediatePropagation();
   };
+  const onMouseMove = (event: MouseEvent) => {
+    if (!active) return;
+    hover(editor.view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos);
+  };
+  const onMouseLeave = () => hover(undefined);
   const dom = editor.view.dom;
+  dom.addEventListener("mousemove", onMouseMove);
+  dom.addEventListener("mouseleave", onMouseLeave);
   dom.addEventListener("mousedown", onMouseDown, true);
   dom.addEventListener("click", swallowClick, true);
 
@@ -373,6 +413,8 @@ export function createReader(
       exit();
       clearTimeout(messageTimer);
       audio.removeEventListener("ended", onEnded);
+      dom.removeEventListener("mousemove", onMouseMove);
+      dom.removeEventListener("mouseleave", onMouseLeave);
       dom.removeEventListener("mousedown", onMouseDown, true);
       dom.removeEventListener("click", swallowClick, true);
       editor.off("transaction", onTransaction);

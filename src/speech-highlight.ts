@@ -2,11 +2,15 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
-export type Highlight = { sentence?: { from: number; to: number }; word?: { from: number; to: number } };
+type Range = { from: number; to: number };
+/** The sentence and word being spoken, and the sentence a click would start reading from. */
+export type Highlight = { sentence?: Range; word?: Range; hover?: Range };
 export const speechKey = new PluginKey<Highlight>("speech");
 
-// The spoken sentence and word are drawn as decorations, so reading never edits
-// the document or moves the caret. Any document change clears them.
+const classes = { hover: "speech-hover", sentence: "speech-sentence", word: "speech-word" } as const;
+
+// The marks are drawn as decorations, so reading never edits the document or moves
+// the caret. A transaction sets only the keys it names; any document change clears all.
 export const SpeechHighlight = Extension.create({
   name: "speechHighlight",
   addProseMirrorPlugins() {
@@ -14,15 +18,22 @@ export const SpeechHighlight = Extension.create({
       key: speechKey,
       state: {
         init: () => ({}),
-        apply: (tr, previous) => tr.getMeta(speechKey) ?? (tr.docChanged ? {} : previous),
+        apply(tr, previous) {
+          const change: Highlight | undefined = tr.getMeta(speechKey);
+          if (change) return { ...previous, ...change };
+          return tr.docChanged ? {} : previous;
+        },
       },
       props: {
         decorations(state) {
           const highlight = speechKey.getState(state);
           const size = state.doc.content.size;
           const decorations: Decoration[] = [];
-          for (const [range, name] of [[highlight?.sentence, "speech-sentence"], [highlight?.word, "speech-word"]] as const)
-            if (range && range.from < range.to && range.to <= size) decorations.push(Decoration.inline(range.from, range.to, { class: name }));
+          // Later decorations nest inside earlier ones: the word sits in the sentence.
+          for (const name of ["hover", "sentence", "word"] as const) {
+            const range = highlight?.[name];
+            if (range && range.from < range.to && range.to <= size) decorations.push(Decoration.inline(range.from, range.to, { class: classes[name] }));
+          }
           return DecorationSet.create(state.doc, decorations);
         },
       },

@@ -2,22 +2,29 @@
 :root {
   --speech-sentence: #e0e7ff;
   --speech-word: #a5b4fc;
+  --speech-hover: #fdecd6;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --speech-sentence: rgb(129 140 248 / 0.2);
     --speech-word: rgb(129 140 248 / 0.6);
+    --speech-hover: rgb(251 146 60 / 0.22);
   }
 }
 
 /* No side padding: ProseMirror splits a mark at every link or bold run, and a later
    piece's padding would paint over the end of the text before it. */
+.ProseMirror .speech-hover,
 .ProseMirror .speech-sentence,
 .ProseMirror .speech-word {
   border-radius: 6px;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
+}
+
+.ProseMirror .speech-hover {
+  background: var(--speech-hover);
 }
 
 .ProseMirror .speech-sentence {

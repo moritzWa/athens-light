@@ -34,7 +34,7 @@ export function mountSpeechControls(reader: Reader) {
   // The one thing a new user needs: in reader mode a click reads from the word.
   const hint = document.createElement("span");
   hint.className = "speech-hint";
-  hint.textContent = "Click a word to read from it";
+  hint.textContent = "Click a sentence to read from it";
   root.append(toggle, slower, rate, faster, exit, hint, message);
   // Clicking a control must not move the caret out of the document.
   root.addEventListener("mousedown", event => event.preventDefault());
