@@ -1,7 +1,8 @@
 import { Editor } from "@tiptap/core";
 import { extensions } from "./extensions";
 import { splitFrontMatter } from "./frontmatter";
-import { loadMarkdown } from "./document";
+import { loadMarkdown, keepPlace } from "./document";
+import { showConflict, type ConflictChoice } from "./external-conflict";
 import { normalizeMarkdown as normalize } from "./comments";
 import { mountComments } from "./comment-ui";
 import { mountLinks } from "./link-ui";
@@ -17,6 +18,7 @@ import logo from "./athens-logo.svg";
 import "./style.css";
 
 const SAVE_DELAY_MS = 400;
+const WATCH_INTERVAL_MS = 1000;
 
 type RecentFile = { path: string; name: string; dir: string };
 
@@ -49,6 +51,14 @@ async function renderLauncher() {
 
 const baseName = (p: string) => p.split("/").pop()!;
 
+// Where "Keep both" puts the version that was in the window, e.g. "note (my edits 2026-11-18 14.30.05).md".
+function copyPath(path: string) {
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}.${pad(now.getMinutes())}.${pad(now.getSeconds())}`;
+  return path.replace(/(\.[^./]*)?$/, ` (my edits ${stamp})$1`);
+}
+
 async function main() {
   const initial = await invoke<string | null>("initial_path");
   if (!initial) return renderLauncher();
@@ -79,15 +89,34 @@ async function main() {
   const serialize = () => front + normalize(editor.getMarkdown());
   let synced: string;
 
+  let saves = 0;
+  let knownVersion: string | null | undefined;
+  let conflict: { theirs: string; close: () => void } | undefined;
+  const dirty = () => editor.isEditable && (timer !== undefined || serialize() !== synced);
+
+  let writing = false;
+
+  async function write() {
+    const md = serialize();
+    writing = true;
+    try {
+      await invoke("write_file", { path, content: md });
+    } finally {
+      writing = false;
+    }
+    synced = md;
+    lastDisk = md;
+    saves++;
+  }
+
   async function save() {
     window.clearTimeout(timer);
     timer = undefined;
-    if (!editor.isEditable) return;
-    const md = serialize();
-    if (md === synced) return;
-    await invoke("write_file", { path, content: md });
-    synced = md;
-    lastDisk = md;
+    if (!editor.isEditable || conflict) return;
+    if (serialize() === synced) return;
+    // Never write over an external change we have not looked at yet.
+    try { if (await checkDisk(false)) return; } catch { /* unreadable file: save as before */ }
+    await write();
   }
 
   const header = document.createElement("div");
@@ -140,7 +169,9 @@ async function main() {
       if (commit && input.value.trim() !== baseName(path)) {
         try {
           await save();
+          if (conflict) throw new Error("Unresolved external change");
           path = await invoke<string>("rename_file", { path, newName: input.value });
+          knownVersion = undefined;
           setImageDocumentPath(editor, path);
         } catch {
           failed = true;
@@ -162,15 +193,82 @@ async function main() {
     input.addEventListener("blur", () => finish(true));
   });
 
-  // Pick up edits made outside the app (git, agents) when the window regains focus.
-  window.addEventListener("focus", async () => {
-    if (timer !== undefined) return;
-    const disk = await invoke<string>("read_file", { path });
-    if (disk === lastDisk) return;
+  function accept(disk: string) {
+    window.clearTimeout(timer);
+    timer = undefined;
     lastDisk = disk;
     ({ front, body } = splitFrontMatter(disk));
+    const restore = keepPlace(editor);
     load();
     synced = serialize();
+    restore();
+  }
+
+  // True when the file changed outside the app and was reloaded or raised a conflict.
+  async function inspectDisk(force: boolean): Promise<boolean> {
+    const current = path;
+    const version = await invoke<string | null>("file_version", { path });
+    if (!force && (version === null || version === knownVersion)) return false;
+    const before = saves;
+    if (writing) return false;
+    const disk = await invoke<string>("read_file", { path });
+    // Our own save may be what changed the file; look again on the next check.
+    if (writing || saves !== before || path !== current) return false;
+    knownVersion = version;
+    if (disk === lastDisk) return false;
+    if (conflict) {
+      conflict.theirs = disk;
+      lastDisk = disk;
+    } else if (dirty()) {
+      lastDisk = disk;
+      conflict = { theirs: disk, close: showConflict(document, choice => void resolve(choice)) };
+    } else {
+      accept(disk);
+    }
+    return true;
+  }
+
+  let checks: Promise<unknown> = Promise.resolve();
+  function checkDisk(force: boolean): Promise<boolean> {
+    const run = checks.then(() => inspectDisk(force));
+    checks = run.catch(() => {});
+    return run;
+  }
+
+  async function resolve(choice: ConflictChoice) {
+    const current = conflict;
+    if (!current) return;
+    try {
+      if (choice === "mine") {
+        await write();
+      } else {
+        if (choice === "both") await invoke("write_file", { path: copyPath(path), content: serialize() });
+        accept(current.theirs);
+      }
+    } catch (error) {
+      console.warn("Could not resolve the external change", error);
+      return;
+    }
+    conflict = undefined;
+    current.close();
+  }
+
+  // Other apps, git and agents change the open file at any time, so watch it
+  // instead of waiting for focus. Stat-polling survives every way of replacing it.
+  let polling = false;
+  const poll = async () => {
+    if (polling) return;
+    polling = true;
+    try { await checkDisk(false); } catch (error) { console.warn("Could not check the open file", error); }
+    polling = false;
+  };
+  const watcher = window.setInterval(poll, WATCH_INTERVAL_MS);
+  const refocus = () => void checkDisk(true).catch(() => {});
+  window.addEventListener("focus", refocus);
+  editor.on("destroy", () => {
+    window.clearInterval(watcher);
+    window.removeEventListener("focus", refocus);
+    conflict?.close();
   });
 
   // Saving is automatic, so Cmd+S reads aloud; it still flushes a pending save.
@@ -185,10 +283,11 @@ async function main() {
   });
 
   await getCurrentWindow().onCloseRequested(async (e) => {
+    if (conflict) return e.preventDefault();
     if (timer === undefined) return;
     e.preventDefault();
     await save();
-    await getCurrentWindow().destroy();
+    if (!conflict) await getCurrentWindow().destroy();
   });
 }
 

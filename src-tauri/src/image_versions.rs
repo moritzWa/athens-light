@@ -27,6 +27,13 @@ pub fn image_versions(paths: Vec<String>) -> Vec<Option<String>> {
     paths.iter().map(|path| version(Path::new(path))).collect()
 }
 
+// Same stat-based version for the open document: it is replaced, truncated,
+// deleted and recreated by other tools just like an image.
+#[tauri::command]
+pub fn file_version(path: String) -> Option<String> {
+    version(Path::new(&path))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
