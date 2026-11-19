@@ -38,7 +38,7 @@ try {
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "horizontal overflow at native window width");
   const boxes = await page.locator(".comment-card").evaluateAll(cards => cards.map(card => ({ top: card.getBoundingClientRect().top, bottom: card.getBoundingClientRect().bottom })));
   for (let i = 1; i < boxes.length; i++) assert(boxes[i]!.top >= boxes[i - 1]!.bottom, "comment cards overlap");
-  await page.locator(".comment-jump").first().click();
+  await page.locator(".comment-card").first().click();
   await page.locator(".comment-anchor-active").waitFor();
   await page.waitForTimeout(250);
   await page.screenshot({ path: new URL("../docs/comments.png", import.meta.url).pathname, fullPage: false });
@@ -55,13 +55,34 @@ try {
   await page.getByRole("button", { name: "Comment", exact: true }).click();
   const draft = page.locator(".comment-draft");
   await draft.getByRole("textbox", { name: "Comment text" }).fill("Cannot close --> a comment here.");
-  await draft.getByRole("button", { name: "Save", exact: true }).click();
+  await draft.getByRole("button", { name: "Comment", exact: true }).click();
   assert.equal(await draft.getByRole("status").textContent(), "Write a comment without <!-- or -->.");
   assert(!(await page.evaluate(() => (window as any).__fixture.disk)).includes("Cannot close"));
   await draft.getByRole("textbox", { name: "Comment text" }).fill("A new note.");
-  await draft.getByRole("button", { name: "Save", exact: true }).click();
-  await page.waitForFunction(() => (window as any).__fixture.disk.includes("<!-- A new note. -->"));
+  await draft.getByRole("button", { name: "Comment", exact: true }).click();
+  await page.waitForFunction(() => (window as any).__fixture.disk.includes("<!-- comment: A new note. -->"));
   assert.equal(await page.locator(".comment-card").count(), 4);
+
+  // A comment sits on exactly the selected word.
+  await page.evaluate(() => {
+    const editor = (document.querySelector(".ProseMirror") as any).editor;
+    let at = -1;
+    editor.state.doc.descendants((node: any, pos: number) => { if (at < 0 && node.isText && node.text.includes("highlight")) at = pos + node.text.indexOf("highlight"); });
+    editor.chain().focus().setTextSelection({ from: at, to: at + "highlight".length }).run();
+  });
+  await openContextToolbar(page);
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  const wordDraft = page.locator(".comment-draft");
+  await wordDraft.locator(".comment-jump").waitFor();
+  assert.equal(await wordDraft.locator(".comment-jump").textContent(), "highlight");
+  const lit = await page.locator(".comment-range-active").evaluateAll(spans => spans.map(span => span.textContent));
+  assert.deepEqual(lit, ["highlight"], `highlighted: ${JSON.stringify(lit)}`);
+  await wordDraft.getByRole("textbox", { name: "Comment text" }).fill("Which one?");
+  await wordDraft.getByRole("button", { name: "Comment", exact: true }).click();
+  await page.waitForFunction(() => /<!-- comment: Which one\? -->highlight<!-- \/comment -->/.test((window as any).__fixture.disk));
+  assert.equal(await page.locator(".comment-card").count(), 5);
+  assert.equal(await page.locator("[data-comment-id]").evaluateAll(spans => spans.map(span => span.textContent).filter(text => text === "highlight").length), 1);
+  await page.screenshot({ path: new URL("../docs/comments.png", import.meta.url).pathname, fullPage: false });
 
   await page.setViewportSize({ width: 560, height: 900 });
   await page.waitForTimeout(100);

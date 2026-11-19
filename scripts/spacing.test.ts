@@ -102,6 +102,81 @@ test("inline comments survive prose edits and round trips", () => {
   expect(editor.getMarkdown()).toBe(`Edited ${source}`);
 });
 
+const marked = (editor: InstanceType<typeof Editor>) => {
+  const ranges: { text: string; note: string }[] = [];
+  editor.state.doc.descendants(node => {
+    for (const mark of node.marks) if (mark.type.name === "commentRange") ranges.push({ text: node.text!, note: mark.attrs.text });
+  });
+  return ranges;
+};
+
+test("a comment on exact words is a mark in the editor and paired comments in the file", () => {
+  const source = "The <!-- comment: Which fox? -->quick<!-- /comment --> brown fox.";
+  const editor = open(source);
+  expect(loadMarkdown(editor, source)).toBeNull();
+  expect(editor.isEditable).toBe(true);
+  expect(marked(editor)).toEqual([{ text: "quick", note: "Which fox?" }]);
+  expect(editor.getJSON().content?.[0]?.content?.some(node => node.type === "inlineHtmlComment")).toBe(false);
+  expect(editor.getMarkdown()).toBe(source);
+  const span = editor.view.dom.querySelector("[data-comment-id]")!;
+  expect(span.textContent).toBe("quick");
+  editor.commands.insertContentAt(1, "Edited ");
+  expect(editor.getMarkdown()).toBe(`Edited ${source}`);
+  loadMarkdown(editor, editor.getMarkdown());
+  expect(marked(editor)).toEqual([{ text: "quick", note: "Which fox?" }]);
+});
+
+test("a comment on the first words of a paragraph stays an editable paragraph", () => {
+  for (const source of [
+    "<!-- comment: Start here -->The quick<!-- /comment --> brown fox.\n\nNext.",
+    "- <!-- comment: In a list -->Item<!-- /comment --> one\n- Two\n\nEnd.",
+    "<!-- comment: Two\nlines -->Whole line<!-- /comment -->",
+  ]) {
+    const editor = open("Placeholder");
+    expect(loadMarkdown(editor, source)).toBeNull();
+    expect(editor.isEditable).toBe(true);
+    expect(marked(editor).length).toBe(1);
+    expect(editor.getMarkdown()).toBe(source);
+  }
+});
+
+test("comments on formatted, nested and adjacent words round trip", () => {
+  const sources = [
+    "A <!-- comment: Bold word -->**strong**<!-- /comment --> and *calm* words.",
+    "<!-- comment: Outer -->One <!-- comment: Inner -->two<!-- /comment --> three<!-- /comment --> four.",
+    "<!-- comment: A -->One<!-- /comment --><!-- comment: B -->two<!-- /comment -->",
+    "See <!-- comment: Link -->[the docs](https://example.com)<!-- /comment --> and a note[^1].\n\n[^1]: Note.",
+  ];
+  for (const source of sources) {
+    const editor = open("Placeholder");
+    expect(loadMarkdown(editor, source)).toBeNull();
+    expect(marked(editor).length).toBeGreaterThan(0);
+    const saved = editor.getMarkdown();
+    expect(saved).toBe(source);
+    loadMarkdown(editor, saved);
+    expect(editor.getMarkdown()).toBe(source);
+  }
+});
+
+test("an unpaired or empty range comment stays a plain comment and nothing is lost", () => {
+  for (const source of ["An <!-- comment: Alone -->open note.", "A stray<!-- /comment --> closer.", "Empty<!-- comment: None --><!-- /comment --> range."]) {
+    const editor = open("Placeholder");
+    expect(loadMarkdown(editor, source)).toBeNull();
+    expect(marked(editor)).toEqual([]);
+    expect(editor.getMarkdown()).toBe(source);
+  }
+});
+
+test("adding a range comment to a selection saves paired comments around exactly those words", () => {
+  const editor = open("The quick brown fox.");
+  const from = 5;
+  editor.view.dispatch(editor.state.tr.addMark(from, from + 5, editor.schema.marks.commentRange!.create({ id: "new", text: "Too vague." })));
+  expect(editor.getMarkdown()).toBe("The <!-- comment: Too vague. -->quick<!-- /comment --> brown fox.");
+  editor.commands.insertContentAt(from + 5, "er");
+  expect(marked(editor)).toEqual([{ text: "quick", note: "Too vague." }]);
+  expect(editor.getMarkdown()).toBe("The <!-- comment: Too vague. -->quick<!-- /comment -->er brown fox.");
+});
+
 test("normalization preserves comment whitespace and entities", () => {
   const source = "First.\n\n<!-- Line one\n\n\nLine two\n&nbsp;\n-->\n\nLast.";
   const editor = open(source);

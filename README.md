@@ -29,7 +29,7 @@ Every push to `main` builds a signed app in GitHub Actions and replaces the file
 - Cmd+N creates a new markdown file, Cmd+O opens one, and clicking the title renames the file
 - Cmd+K copies the active file's full path to the clipboard
 - Selecting text opens a compact contextual menu for formatting, links, comments, footnotes, images and tables. No toolbar stays on screen while writing. Right-click at the caret for insertion controls, or inside a table for row and column actions. Escape dismisses the menu.
-- HTML comments appear as margin cards. Edit or delete a card, or select text and use Comment in the toolbar to add one. Comments stay in the Markdown file, with no separate database.
+- Comments appear as margin cards. Select any words (a single word is fine) and use Comment in the toolbar; the words get a highlight and the card sits beside them. Click a highlight or a card to link the two, or edit and delete from the card. Comments stay in the Markdown file, with no separate database: a comment on words is written as `<!-- comment: note -->the words<!-- /comment -->`, and plain `<!-- note -->` comments still show as cards for their paragraph.
 - Footnotes show numbered references and editable notes collected at the end in first-reference order. Click a reference to jump to its note, or use Footnote in the toolbar to add one. Deleting the last reference removes the note; undo restores both. Named labels and multiline notes stay in standard Markdown. Unused definitions imported from a file stay in its source but are not shown as notes.
 - Insert tables with a row/column count. Hovering a table shows a grip above each column and beside each row (click for insert, delete and remove-table actions) and `+` strips on the right and bottom edges to append a column or row. Drag a column border to resize it. Markdown has no column widths, so resized widths last only while the file is open.
 - Insert images by URL, a path inside the document's folder, or local file. Chosen files are copied to an `assets` folder beside the document without overwriting existing images. Markdown keeps a relative path, not an app-specific URL.
@@ -45,7 +45,7 @@ Every push to `main` builds a signed app in GitHub Actions and replaces the file
 
 ## Caveat
 
-Your first edit to a file rewrites it in the editor's markdown style, which can change bullet characters or spacing. Opening a file without editing it never rewrites it. Files that contain raw HTML (other than comments) open read-only, because the editor cannot write it back faithfully. Comments refer to their paragraph, not a tracked text range; they do not include authors, replies or resolved states.
+Your first edit to a file rewrites it in the editor's markdown style, which can change bullet characters or spacing. Opening a file without editing it never rewrites it. Files that contain raw HTML (other than comments) open read-only, because the editor cannot write it back faithfully. Comments on words stay inside one paragraph, so a selection across paragraphs comments on the part in its first paragraph. Comments do not include authors, replies or resolved states.
 
 ## Build
 

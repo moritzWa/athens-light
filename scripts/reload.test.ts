@@ -81,7 +81,7 @@ test("the app reloads editable comments, preserves them on save, and protects ra
     expect(dom.window.document.querySelectorAll(".comment-card").length).toBe(1);
     await save();
 
-    // New comments are drafted outside the document, then saved after a block.
+    // New comments are drafted outside the document, then saved as a mark on the selected words.
     instance.commands.setTextSelection({ from: 1, to: 5 });
     (editor() as HTMLElement).focus();
     await new Promise(resolve => setTimeout(resolve, 40));
@@ -93,7 +93,8 @@ test("the app reloads editable comments, preserves them on save, and protects ra
     draft.querySelector("textarea")!.value = "A new paragraph comment.";
     draft.querySelector("form")!.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
     await save();
-    expect(disk).toContain("<!-- A new paragraph comment. -->");
+    expect(disk).toContain("<!-- comment: A new paragraph comment. -->");
+    expect(disk).toContain("<!-- /comment -->");
     expect(dom.window.document.querySelectorAll(".comment-card").length).toBe(2);
     const writeCount = writes.length;
 
