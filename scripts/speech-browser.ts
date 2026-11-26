@@ -5,14 +5,15 @@ const short = "Alpha beta gamma delta. Second sentence here.\n\nThird paragraph 
 const long = Array.from({ length: 8 }, (_, index) => `Paragraph ${index + 1} has several plain words, so the reading needs more than one piece of speech.`).join("\n\n");
 const { page, errors, close } = await browserFixture(short);
 const controls = page.locator(".speech-controls");
-const word = page.locator(".ProseMirror .speech-word");
-const sentence = page.locator(".ProseMirror .speech-sentence");
+// The marks are shapes behind the text, tagged with the text they cover.
+const word = page.locator(".speech-marks .word[data-text]");
+const sentence = page.locator(".speech-marks .sentence[data-text]");
 const calls = () => page.evaluate(() => (window as any).__fixture.speech as { text: string; language: string }[]);
 const writes = () => page.evaluate(() => (window as any).__fixture.writes.length as number);
-const wordText = async () => (await word.allTextContents()).join("");
+const wordText = async () => (await word.count()) ? await word.getAttribute("data-text") : "";
 async function waitWord(expected: string) {
   try {
-    await page.waitForFunction(expected => [...document.querySelectorAll(".speech-word")].map(node => node.textContent).join("") === expected, expected, { timeout: 8000 });
+    await page.waitForFunction(expected => document.querySelector(".speech-marks .word[data-text]")?.getAttribute("data-text") === expected, expected, { timeout: 8000 });
   } catch (error) {
     throw new Error(`Expected highlighted word ${expected}, saw ${JSON.stringify(await wordText())}; calls ${JSON.stringify(await calls())}; state ${await controls.getAttribute("data-state")} ${await controls.textContent()}`);
   }
@@ -59,7 +60,7 @@ try {
   await page.keyboard.press("Meta+s");
   await controls.waitFor({ state: "visible" });
   await waitWord("Alpha");
-  assert.equal((await sentence.allTextContents()).join(""), "Alpha beta gamma delta.");
+  assert.equal(await sentence.getAttribute("data-text"), "Alpha beta gamma delta.");
   await waitWord("beta");
   assert.deepEqual((await calls()).map(call => call.language), ["en"]);
   assert((await calls())[0].text.startsWith("Alpha beta gamma delta. Second sentence here. Third paragraph is short."));
@@ -73,7 +74,7 @@ try {
   assert.equal(await wordText(), paused, "the highlight moved while paused");
   await page.keyboard.press("Meta+s");
   await page.getByRole("button", { name: "Pause" }).waitFor();
-  await page.waitForFunction(before => document.querySelector(".speech-word")?.textContent !== before, paused, { timeout: 8000 });
+  await page.waitForFunction(before => document.querySelector(".speech-marks .word")?.getAttribute("data-text") !== before, paused, { timeout: 8000 });
 
   // Speed keys and buttons change and remember the rate.
   assert.equal(await page.locator(".speech-rate").textContent(), "1.7×");
@@ -114,18 +115,18 @@ try {
   // Hovering previews the sentence a click would read from; the click starts at its beginning.
   const gamma = await pointAt("gamma");
   await page.mouse.move(gamma.x, gamma.y);
-  await page.waitForFunction(() => [...document.querySelectorAll(".speech-hover")].map(node => node.textContent).join("") === "Alpha beta gamma delta.", undefined, { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector(".speech-marks .hover")?.getAttribute("data-text") === "Alpha beta gamma delta.", undefined, { timeout: 5000 });
   await page.mouse.click(gamma.x, gamma.y);
   await waitWord("Alpha");
   assert((await calls()).at(-1)!.text.startsWith("Alpha beta gamma delta."), "a click in reader mode did not read from the start of the sentence");
-  assert.equal(await page.locator(".ProseMirror .speech-hover").count(), 0, "the hover preview stayed on the sentence being read");
+  assert.equal(await page.locator(".speech-marks .hover[data-text]").count(), 0, "the hover preview stayed on the sentence being read");
   assert.equal(await page.evaluate(() => (document.querySelector(".ProseMirror") as any).editor.state.selection.from), from, "a click in reader mode moved the caret");
 
   // Escape leaves reader mode; then a click places the caret and reads nothing.
   await page.keyboard.press("Escape");
   await controls.waitFor({ state: "hidden" });
   assert.equal(await page.evaluate(() => document.body.classList.contains("reader-mode")), false);
-  assert.equal(await page.locator(".ProseMirror .speech-hover").count(), 0, "hover preview outlived reader mode");
+  assert.equal(await page.locator(".speech-marks .hover[data-text]").count(), 0, "hover preview outlived reader mode");
   const readsBefore = (await calls()).length;
   const third = await pointAt("Third");
   await page.mouse.click(third.x, third.y);
@@ -156,7 +157,11 @@ try {
   await page.locator(".ProseMirror p").nth(7).waitFor();
   await page.locator(".ProseMirror").click({ position: { x: 4, y: 4 } });
   await page.keyboard.press("Meta+s");
-  await page.locator(".ProseMirror p").nth(7).locator(".speech-word").waitFor({ timeout: 30000 });
+  await page.waitForFunction(() => {
+    const mark = document.querySelector(".speech-marks .word[data-text]")?.getBoundingClientRect();
+    const paragraph = document.querySelectorAll(".ProseMirror p")[7]?.getBoundingClientRect();
+    return !!mark && !!paragraph && mark.top >= paragraph.top - 4 && mark.bottom <= paragraph.bottom + 4;
+  }, undefined, { timeout: 30000 });
   // The reading ends, but reader mode stays on so a click can start another one.
   await page.waitForFunction(() => document.querySelector(".speech-controls")?.getAttribute("data-state") === "ready", undefined, { timeout: 30000 });
   assert.equal(await controls.isVisible(), true);

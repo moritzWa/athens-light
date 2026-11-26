@@ -1,6 +1,6 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
-import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
+import type { EditorView } from "@tiptap/pm/view";
 import { pathOf, type Row } from "./speech-mark-path";
 
 type Range = { from: number; to: number };
@@ -8,7 +8,6 @@ type Range = { from: number; to: number };
 export type Highlight = { sentence?: Range; word?: Range; hover?: Range };
 export const speechKey = new PluginKey<Highlight>("speech");
 
-const classes = { hover: "speech-hover", sentence: "speech-sentence", word: "speech-word" } as const;
 const NAMES = ["hover", "sentence", "word"] as const;
 const SVG = "http://www.w3.org/2000/svg";
 /** Pixels of mark past the text, left and right, and the corner radius. The word's pad covers the spaces around it, and the sentence reaches further so the word never meets its edge. */
@@ -66,11 +65,11 @@ function rowsOf(view: EditorView, range: Range, host: DOMRect, name: keyof typeo
   });
 }
 
-// The marks are decorations, so reading never edits the document or moves the caret. A
-// transaction sets only the keys it names; any document change clears all. The decorations
-// only tag the text; the colour is drawn as one shape per mark behind the page text (see speech.css),
-// because a background on the text is a box per line with notches where the lines meet and no
-// room for padding that does not move the text.
+// The marks live in plugin state, so reading never edits the document or moves the caret. A
+// transaction sets only the keys it names; any document change clears all. Each mark is drawn as one
+// shape behind the page text (see speech.css). It is not a decoration on the text: a wrapping span
+// splits the text run, which makes the browser shape and space the glyphs differently (headings
+// visibly shifted), and a background on it is a box per line with no room for padding.
 export const SpeechHighlight = Extension.create({
   name: "speechHighlight",
   addProseMirrorPlugins() {
@@ -108,25 +107,15 @@ export const SpeechHighlight = Extension.create({
               try { d = pathOf(rowsOf(view, range, box, name), SHAPE[name].radius); } catch { d = ""; }
             }
             paths[name].setAttribute("d", d);
+            // What each mark covers, for tests and for anyone inspecting the page.
+            if (d) paths[name].setAttribute("data-text", view.state.doc.textBetween(range!.from, range!.to, " "));
+            else paths[name].removeAttribute("data-text");
           }
         };
         const resized = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(draw);
         resized?.observe(view.dom);
         draw();
         return { update: draw, destroy() { resized?.disconnect(); svg.remove(); } };
-      },
-      props: {
-        decorations(state) {
-          const highlight = speechKey.getState(state);
-          const size = state.doc.content.size;
-          const decorations: Decoration[] = [];
-          // Later decorations nest inside earlier ones: the word sits in the sentence.
-          for (const name of NAMES) {
-            const range = highlight?.[name];
-            if (range && range.from < range.to && range.to <= size) decorations.push(Decoration.inline(range.from, range.to, { class: classes[name] }));
-          }
-          return DecorationSet.create(state.doc, decorations);
-        },
       },
     })];
   },
