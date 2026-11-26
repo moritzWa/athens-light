@@ -11,11 +11,11 @@ export const speechKey = new PluginKey<Highlight>("speech");
 const classes = { hover: "speech-hover", sentence: "speech-sentence", word: "speech-word" } as const;
 const NAMES = ["hover", "sentence", "word"] as const;
 const SVG = "http://www.w3.org/2000/svg";
-/** Pixels of mark past the text, left and right, and the corner radius. The word's pad covers the spaces around it. */
+/** Pixels of mark past the text, left and right, and the corner radius. The word's pad covers the spaces around it, and the sentence reaches further so the word never meets its edge. */
 const SHAPE = {
-  hover: { pad: 4, radius: 6, inset: 0 },
-  sentence: { pad: 4, radius: 6, inset: 0 },
-  word: { pad: 3, radius: 5, inset: 1 },
+  hover: { pad: 8, radius: 6, inset: 0 },
+  sentence: { pad: 8, radius: 6, inset: 0 },
+  word: { pad: 4, radius: 5, inset: 1 },
 } as const;
 
 /** The boxes of the text between two positions, one per line, as the browser laid them out. */
@@ -68,7 +68,7 @@ function rowsOf(view: EditorView, range: Range, host: DOMRect, name: keyof typeo
 
 // The marks are decorations, so reading never edits the document or moves the caret. A
 // transaction sets only the keys it names; any document change clears all. The decorations
-// only tag the text; the colour is drawn as one shape per mark over the page (see speech.css),
+// only tag the text; the colour is drawn as one shape per mark behind the page text (see speech.css),
 // because a background on the text is a box per line with notches where the lines meet and no
 // room for padding that does not move the text.
 export const SpeechHighlight = Extension.create({

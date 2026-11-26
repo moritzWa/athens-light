@@ -1,39 +1,34 @@
-/* A soft violet: the sentence a tint, the word the same hue deeper. In dark mode the marks add light
-   instead of multiplying, so the text stays bright. */
+/* The sentence and word colours are the ones Speechify paints (measured from its pixels). Dark mode
+   uses the same indigo as the Understand reader, translucent over the dark page. */
 :root {
-  --speech-sentence: #ebe6fe;
-  --speech-word: #c3b6fa;
+  --speech-sentence: #e1e4fd;
+  --speech-word: #adb5f9;
   --speech-hover: #fdecd6;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --speech-sentence: rgb(167 139 250 / 0.2);
-    --speech-word: rgb(167 139 250 / 0.5);
+    --speech-sentence: rgb(129 140 248 / 0.2);
+    --speech-word: rgb(129 140 248 / 0.6);
     --speech-hover: rgb(251 146 60 / 0.22);
   }
 }
 
+/* The marks sit behind the text, in the editor's own stacking context. Painting over the text with a
+   blend mode made WebKit draw the glyphs differently while a mark was up, so the text seemed to shift. */
 #editor {
   position: relative;
+  isolation: isolate;
 }
 
-/* One shape per mark, drawn by speech-highlight.ts over the text and blended into it, so it paints
-   behind the glyphs even over a code block, and its padding never moves the text. */
 .speech-marks {
   position: absolute;
   inset: 0;
+  z-index: -1;
   width: 100%;
   height: 100%;
   overflow: visible;
   pointer-events: none;
-  mix-blend-mode: multiply;
-}
-
-@media (prefers-color-scheme: dark) {
-  .speech-marks {
-    mix-blend-mode: screen;
-  }
 }
 
 .speech-marks .hover {
